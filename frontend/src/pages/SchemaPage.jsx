@@ -77,7 +77,9 @@ export default function SchemaPage() {
   if (loading) return <div style={{ color: '#e8e8f0', padding: 20 }}>Loading schema...</div>;
   if (Object.keys(schemaTables).length === 0) return <div style={{ color: '#e8e8f0', padding: 20 }}>No tables found.</div>;
 
-  const t = schemaTables[activeTable]
+  const t = schemaTables[activeTable] || Object.values(schemaTables)[0]
+  if (!t) return null
+
   const filteredCols = t.columns.filter(c => !filter || c.name.toLowerCase().includes(filter.toLowerCase()))
 
   return (

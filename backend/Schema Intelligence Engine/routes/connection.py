@@ -20,3 +20,17 @@ def connect(req: ConnectRequest):
         return {"status": "connected"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/connection")
+def get_connection():
+    from db.connection import db_state
+    if not db_state.db_url:
+        return {"status": "disconnected", "url": None, "engine": None}
+    
+    engine = db_state.engine
+    engine_name = getattr(engine, "name", "unknown") if engine else "unknown"
+    return {
+        "status": "connected",
+        "url": db_state.db_url,
+        "engine": engine_name
+    }
