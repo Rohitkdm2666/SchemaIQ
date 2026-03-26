@@ -42,11 +42,11 @@ SchemaIQ is a real-time AI-powered database intelligence system that connects to
 cd backend
 
 # Create & activate virtual environment
-python -m venv venv
+python -m venv .venv
 # Windows PowerShell:
-.\venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 # Mac/Linux:
-source venv/bin/activate
+source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -58,11 +58,20 @@ copy .env.example .env   # then edit .env with your Gemini key
 # (place all 9 CSV files in backend/data/ first)
 python load_data.py --data ./data
 
-# Start server
+# Start main server
 uvicorn main:app --reload --port 8000
 ```
 
-### 2. Frontend Setup
+### 2. Schema Intelligence Engine Setup
+
+```bash
+cd "backend/Schema Intelligence Engine"
+
+# Start the schema evaluation engine
+uvicorn main:app --reload --port 8001
+```
+
+### 3. Frontend Setup
 
 ```bash
 cd frontend
@@ -71,7 +80,7 @@ npm install
 npm run dev
 ```
 
-### 3. Open the app
+### 4. Open the app
 
 Visit **http://localhost:5173** and log in:
 

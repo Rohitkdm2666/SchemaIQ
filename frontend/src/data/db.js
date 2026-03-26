@@ -42,8 +42,8 @@ export const PRODUCT_SALES = {
     category: 'electronics',
     price: 189.90,
     salesByDate: {
-      '2026-03-01': 12, '2026-03-02': 8,  '2026-03-03': 15,
-      '2026-03-04': 11, '2026-03-05': 9,  '2026-03-06': 14,
+      '2026-03-01': 12, '2026-03-02': 8, '2026-03-03': 15,
+      '2026-03-04': 11, '2026-03-05': 9, '2026-03-06': 14,
       '2026-03-07': 18, '2026-03-08': 22, '2026-03-09': 17,
       '2026-03-10': 13, '2026-03-11': 10, '2026-03-12': 16,
       '2026-03-13': 24, '2026-03-14': 19, '2026-03-15': 21,
@@ -144,24 +144,6 @@ export const CHATBOT_KB = {
 }
 
 // ─── D3 ER Diagram data ──────────────────────────────────────────────────────
-export const ER_NODES = [
-  { id: 'customers',    label: 'customers',    color: '#c0392b', cols: 5,  rows: '99,441',   pk: 'customer_id',  fields: ['customer_id (PK)','unique_id','city','state','zip_prefix'] },
-  { id: 'orders',       label: 'orders',       color: '#2980b9', cols: 8,  rows: '99,441',   pk: 'order_id',     fields: ['order_id (PK)','customer_id (FK)','status','purchase_ts','delivery_date'] },
-  { id: 'order_items',  label: 'order_items',  color: '#9b59b6', cols: 7,  rows: '112,650',  pk: null,           fields: ['order_id (FK)','product_id (FK)','seller_id (FK)','price','freight'] },
-  { id: 'payments',     label: 'payments',     color: '#f39c12', cols: 5,  rows: '103,886',  pk: null,           fields: ['order_id (FK)','type','amount','installments'] },
-  { id: 'products',     label: 'products',     color: '#27ae60', cols: 9,  rows: '32,951',   pk: 'product_id',   fields: ['product_id (PK)','category','weight','dimensions'] },
-  { id: 'sellers',      label: 'sellers',      color: '#e74c3c', cols: 4,  rows: '3,095',    pk: 'seller_id',    fields: ['seller_id (PK)','city','state','zip_prefix'] },
-  { id: 'reviews',      label: 'reviews',      color: '#8e44ad', cols: 7,  rows: '99,224',   pk: 'review_id',    fields: ['review_id (PK)','order_id (FK)','score','comment'] },
-  { id: 'geolocation',  label: 'geolocation',  color: '#666680', cols: 5,  rows: '1,000,163',pk: null,           fields: ['zip_prefix','lat','lng','city','state'] },
-  { id: 'order_payments',label:'order_payments',color: '#d35400', cols: 5, rows: '103,886',  pk: null,           fields: ['order_id (FK)','type','amount','installments'] },
-]
+export const ER_NODES = []
 
-export const ER_LINKS = [
-  { source: 'orders',       target: 'customers',  via: 'customer_id', card: '1:N' },
-  { source: 'order_items',  target: 'orders',     via: 'order_id',    card: 'N:1' },
-  { source: 'order_items',  target: 'products',   via: 'product_id',  card: 'N:1' },
-  { source: 'order_items',  target: 'sellers',    via: 'seller_id',   card: 'N:1' },
-  { source: 'payments',     target: 'orders',     via: 'order_id',    card: 'N:1' },
-  { source: 'reviews',      target: 'orders',     via: 'order_id',    card: 'N:1' },
-  { source: 'order_payments',target:'orders',     via: 'order_id',    card: 'N:1' },
-]
+export const ER_LINKS = []

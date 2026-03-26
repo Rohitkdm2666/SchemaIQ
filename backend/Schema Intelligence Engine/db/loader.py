@@ -124,7 +124,8 @@ def build_sqlite_from_csv(
             cur.execute(f'CREATE TABLE IF NOT EXISTS "{table_name}" ({col_defs});')
 
             placeholders = ",".join(["?"] * len(columns))
-            insert_sql = f'INSERT INTO "{table_name}" ({", ".join([f"\"{c}\"" for c in columns])}) VALUES ({placeholders});'
+            quoted_columns = ", ".join([f'"{column}"' for column in columns])
+            insert_sql = f'INSERT INTO "{table_name}" ({quoted_columns}) VALUES ({placeholders});'
 
             for row in reader:
                 if len(row) < len(columns):

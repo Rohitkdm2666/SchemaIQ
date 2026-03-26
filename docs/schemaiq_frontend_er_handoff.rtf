@@ -1,0 +1,381 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Arial;}{\f1 Courier New;}}
+\fs24
+\b SchemaIQ Project Handoff - Frontend ER Diagram Focus\b0\par
+\par
+\b 1. Project Summary\b0\par
+SchemaIQ is an AI-powered database intelligence platform with two backend areas and one React frontend.\par
+\par
+Main project goals:\par
+- Query a database using AI and natural language.\par
+- Inspect schema and relationships.\par
+- Profile data quality.\par
+- Generate and display ER diagrams.\par
+\par
+Your responsibility is mainly frontend-oriented:\par
+- consume schema data from backend,\par
+- convert schema JSON into graph data,\par
+- render a custom ER diagram in React,\par
+- improve readability, layout, and interactivity,\par
+- avoid making risky backend changes that may conflict with teammates.\par
+\par
+\b 2. High-Level Architecture\b0\par
+There are two important backend areas in this repo:\par
+\par
+1. Main backend at backend/\par
+- Handles QueryBot, metrics, and app-level APIs.\par
+- Main file: backend/main.py\par
+- Runs on port 8000 in the README examples.\par
+\par
+2. Schema Intelligence Engine at backend/Schema Intelligence Engine/\par
+- This is the service most relevant to your work.\par
+- It exposes routes for schema extraction, profiling, preview, upload, and DB connection.\par
+- Main file: backend/Schema Intelligence Engine/main.py\par
+- Runs on port 8001 in the README examples.\par
+\par
+3. Frontend at frontend/\par
+- React + Vite app.\par
+- Existing ER diagram UI currently uses mock data.\par
+- Your main work should happen here.\par
+\par
+\b 3. What You Need for Your Part\b0\par
+For the custom ER diagram task, you do not need to build schema extraction logic yourself.\par
+You should mainly consume backend data from the Schema Intelligence Engine and use it in the frontend.\par
+\par
+Recommended responsibility split:\par
+- Backend team / existing engine: provides schema JSON.\par
+- You: fetch schema JSON, convert it to nodes and edges, and render the ER diagram.\par
+\par
+\b 4. Most Important Backend Folder for You\b0\par
+Folder: backend/Schema Intelligence Engine/\par
+\par
+Purpose:\par
+- inspect a DB or uploaded files,\par
+- extract tables, columns, keys, and relationships,\par
+- return structured schema JSON,\par
+- optionally infer missing relationships,\par
+- provide preview and profiling data.\par
+\par
+\b 5. Routes You Should Know\b0\par
+These routes are defined in backend/Schema Intelligence Engine/routes/.\par
+\par
+\b 5.1 POST /connect\b0\par
+File: backend/Schema Intelligence Engine/routes/connection.py\par
+\par
+Purpose:\par
+- connect the schema engine to a live database URL.\par
+\par
+Request body:\par
+\f1
+{\pard
+{\pntext\f1 1.\tab}{"db_url": "mysql+pymysql://user:pass@host:3306/dbname"}\par
+}
+\f0
+\par
+Response:\par
+- {"status": "connected"}\par
+\par
+Use this if your team wants to inspect a real database connection instead of uploaded files.\par
+\par
+\b 5.2 POST /upload\b0\par
+File: backend/Schema Intelligence Engine/routes/upload.py\par
+\par
+Purpose:\par
+- upload CSV or SQL files,\par
+- convert them into SQLite,\par
+- set that SQLite database as the active source.\par
+\par
+Supported inputs:\par
+- .csv\par
+- .sql\par
+\par
+Important behavior:\par
+- CSV files go into a shared SQLite file: uploads/uploaded_data.sqlite\par
+- SQL files create their own SQLite file.\par
+\par
+Response fields:\par
+- status\par
+- path\par
+- db_url\par
+- sqlite_path\par
+\par
+Use this if the frontend flow lets the user upload schema source files before viewing the ER diagram.\par
+\par
+\b 5.3 GET /schema\b0\par
+File: backend/Schema Intelligence Engine/routes/schema.py\par
+\par
+This is the most important route for your ER diagram work.\par
+\par
+Purpose:\par
+- return canonical schema JSON,\par
+- include tables, columns, primary keys, foreign keys, and relationships.\par
+\par
+Query params:\par
+- db_url (optional)\par
+- schema (optional)\par
+- infer (optional boolean)\par
+\par
+Recommended first call:\par
+\f1
+GET /schema?infer=true\par
+\f0
+\par
+Why use infer=true:\par
+- if a dataset has no explicit foreign keys, the backend can infer likely relationships,\par
+- which is helpful for ER diagram generation.\par
+\par
+Expected response shape:\par
+\f1
+{\pard
+{\pntext\f1 1.\tab}{\par
+  "tables": [\par
+    {\par
+      "name": "orders",\par
+      "columns": [\par
+        {"name": "order_id", "type": "string"},\par
+        {"name": "customer_id", "type": "string"}\par
+      ],\par
+      "primary_key": ["order_id"],\par
+      "foreign_keys": [\par
+        {\par
+          "column": "customer_id",\par
+          "references": {"table": "customers", "column": "customer_id"}\par
+        }\par
+      ]\par
+    }\par
+  ],\par
+  "relationships": [\par
+    {"from_table": "orders", "to_table": "customers", "type": "many-to-one"}\par
+  ]\par
+}\par
+}
+\f0
+\par
+This is the exact backend output you should use to build your nodes and edges.\par
+\par
+\b 5.4 GET /profile\b0\par
+File: backend/Schema Intelligence Engine/routes/profile.py\par
+\par
+Purpose:\par
+- return row counts, null percentages, distinct counts, and FK orphan checks.\par
+\par
+Why it may help you later:\par
+- row counts can be shown in node tooltips,\par
+- data quality information can enrich the schema explorer,\par
+- but this route is not required for your first ER diagram MVP.\par
+\par
+\b 5.5 GET /preview\b0\par
+File: backend/Schema Intelligence Engine/routes/preview.py\par
+\par
+Purpose:\par
+- return limited sample rows for one table.\par
+\par
+Example:\par
+\f1
+GET /preview?table=orders&limit=10\par
+\f0
+\par
+Why it may help:\par
+- useful for debugging,\par
+- useful for hover drawers or schema detail views,\par
+- not required for the initial ER diagram render.\par
+\par
+\b 6. Backend Output You Should Depend On\b0\par
+For your frontend work, the best contract is the /schema response only.\par
+\par
+Use these fields directly:\par
+- tables[].name\par
+- tables[].columns[]\par
+- tables[].primary_key[]\par
+- tables[].foreign_keys[]\par
+- relationships[]\par
+\par
+Frontend meaning:\par
+- one table = one node,\par
+- one relationship = one edge,\par
+- primary_key marks PK fields,\par
+- foreign_keys mark FK fields and define edge labels,\par
+- relationship type helps determine cardinality labels like N:1.\par
+\par
+\b 7. Frontend Files Most Relevant to You\b0\par
+Folder: frontend/src/\par
+\par
+Important files:\par
+- frontend/src/components/ERDiagram.jsx\par
+- frontend/src/pages/SchemaPage.jsx\par
+- frontend/src/data/db.js\par
+\par
+Current status:\par
+- ERDiagram.jsx currently renders from hardcoded mock arrays ER_NODES and ER_LINKS.\par
+- SchemaPage.jsx also uses hardcoded schema table data.\par
+- frontend/src/data/db.js contains mock relationship and schema data.\par
+\par
+Meaning for your work:\par
+- the UI structure already exists,\par
+- but it is not yet connected to the real Schema Intelligence Engine,\par
+- so your job is mainly to replace mock schema data with backend-driven data.\par
+\par
+\b 8. Recommended Frontend Flow for Your ER Diagram\b0\par
+Safe step-by-step plan:\par
+\par
+Step 1:\par
+- call GET /schema?infer=true from the frontend.\par
+\par
+Step 2:\par
+- transform the response into graph data:\par
+  node fields should include table name, columns, PKs, FKs, optional row count, and color.\par
+  edge fields should include source, target, relationship type, FK column, and cardinality label.\par
+\par
+Step 3:\par
+- pass nodes and edges into ERDiagram instead of importing ER_NODES and ER_LINKS from mock data.\par
+\par
+Step 4:\par
+- keep rendering logic in the frontend only.\par
+\par
+Step 5:\par
+- later add interactivity such as click-to-highlight, hover relationship details, and filtering.\par
+\par
+\b 9. Suggested Graph Shape for React/D3\b0\par
+Recommended node shape:\par
+\f1
+{\pard
+{\pntext\f1 1.\tab}{\par
+  id: "orders",\par
+  label: "orders",\par
+  cols: 8,\par
+  rows: null,\par
+  pk: "order_id",\par
+  fields: ["order_id (PK)", "customer_id (FK)", "status"],\par
+  columns: [...],\par
+  primaryKey: ["order_id"],\par
+  foreignKeys: [...]\par
+}\par
+}
+\f0
+\par
+Recommended edge shape:\par
+\f1
+{\pard
+{\pntext\f1 1.\tab}{\par
+  id: "orders-customers-0",\par
+  source: "orders",\par
+  target: "customers",\par
+  type: "many-to-one",\par
+  card: "N:1",\par
+  via: "customer_id",\par
+  fromColumn: "customer_id",\par
+  toColumn: "customer_id"\par
+}\par
+}
+\f0
+\par
+This shape fits the current D3 component well.\par
+\par
+\b 10. Recommended Boundaries to Avoid Team Conflicts\b0\par
+Because multiple teammates are working in the same repo, keep your changes narrow.\par
+\par
+Preferred files to modify for your task:\par
+- frontend/src/components/ERDiagram.jsx\par
+- frontend/src/pages/SchemaPage.jsx or the page where the ER diagram lives\par
+- a new frontend utility file for schema-to-graph mapping\par
+- a new frontend API helper file if needed\par
+\par
+Avoid changing unless necessary:\par
+- backend/main.py\par
+- backend/routes/query.py\par
+- teammate-owned service logic in backend/services/\par
+- Schema Intelligence Engine internals unless there is a clear bug blocking frontend integration\par
+\par
+Best collaboration strategy:\par
+- treat /schema as a stable API contract,\par
+- avoid backend refactors,\par
+- do not rename backend routes,\par
+- do not change response shapes unless the team explicitly agrees,\par
+- prefer additive frontend files over modifying many existing files at once.\par
+\par
+\b 11. Practical Working Strategy for You\b0\par
+If you want to use Claude or Windsurf effectively, give them this narrow task framing:\par
+\par
+I am working only on the frontend custom ER diagram engine. The backend Schema Intelligence Engine already provides GET /schema, GET /profile, GET /preview, POST /upload, and POST /connect. I should mostly consume GET /schema and render a clean interactive ER diagram in React using D3. Please avoid backend refactors and keep changes limited to frontend data fetching, schema-to-graph conversion, layout, and interaction.\par
+\par
+\b 12. File Structure You Should Know\b0\par
+\f1
+schemaiq/\par
+  backend/\par
+    main.py\par
+    requirements.txt\par
+    routes/\par
+      health.py\par
+      metrics.py\par
+      query.py\par
+    services/\par
+      db_service.py\par
+      metrics_service.py\par
+    Schema Intelligence Engine/\par
+      main.py\par
+      README.md\par
+      db/\par
+        connection.py\par
+        inspector.py\par
+        loader.py\par
+      models/\par
+        schema_model.py\par
+        profile_model.py\par
+      routes/\par
+        connection.py\par
+        upload.py\par
+        schema.py\par
+        profile.py\par
+        preview.py\par
+      services/\par
+        schema_extractor/\par
+        relationship_mapper/\par
+        schema_formatter/\par
+        data_profiler/\par
+  frontend/\par
+    src/\par
+      App.jsx\par
+      components/\par
+        ERDiagram.jsx\par
+        Layout.jsx\par
+        Sidebar.jsx\par
+        Topbar.jsx\par
+        ui.jsx\par
+      pages/\par
+        SchemaPage.jsx\par
+        Dashboard.jsx\par
+        QueryBotPage.jsx\par
+        OtherPages.jsx\par
+        LoginPage.jsx\par
+      context/\par
+        AuthContext.jsx\par
+      data/\par
+        db.js\par
+        chatEngine.js\par
+\f0
+\par
+\b 13. Minimal MVP for Your Part\b0\par
+Your first safe deliverable should be:\par
+- fetch /schema from the Schema Intelligence Engine,\par
+- transform the response into nodes and edges,\par
+- render the tables and FK relationships in React,\par
+- show PK and FK markers,\par
+- keep current styling as much as possible,\par
+- avoid changing unrelated pages.\par
+\par
+\b 14. Nice Improvements After MVP\b0\par
+Only after the basic flow works:\par
+- better DAG or dagre layout,\par
+- highlight connected tables on click,\par
+- hover card with relationship info,\par
+- collapse long column lists,\par
+- filter/search tables,\par
+- zoom-to-fit,\par
+- performance tuning for 20 to 50 tables.\par
+\par
+\b 15. Final Advice\b0\par
+For your part, think of the backend as a data provider and the frontend as the real implementation area.\par
+The lowest-conflict path is: use GET /schema, keep backend untouched, and focus on a clean graph transformation plus a strong React/D3 rendering layer.\par
+\par
+Prepared for frontend ER diagram work and team-safe integration.\par
+}
