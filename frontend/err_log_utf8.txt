@@ -1,0 +1,64 @@
+﻿node.exe : X [ERROR] Must use 
+"outdir" when there are 
+multiple input files
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (X [ERROR] M  
+  ust ...ple input files:Str   
+ ing) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+
+1 error
+node:child_process:955
+    throw err;
+    ^
+
+Error: Command failed: D:\D 
+Drive Backup\Hackathons\CodeApe
+x2\SchemaIQ\frontend\node_modul
+es\@esbuild\win32-x64\esbuild.e
+xe src/pages/*.jsx
+    at genericNodeError 
+(node:internal/errors:983:15)
+    at wrappedFn 
+(node:internal/errors:537:14)
+    at checkExecSyncError 
+(node:child_process:916:11)
+    at Object.execFileSync 
+(node:child_process:952:15)
+    at Object.<anonymous> 
+(D:\D Drive Backup\Hackathons\C
+odeApex2\SchemaIQ\frontend\node
+_modules\esbuild\bin\esbuild:21
+9:28)
+    at Module._compile (node:in
+ternal/modules/cjs/loader:1706:
+14)
+    at Object..js (node:interna
+l/modules/cjs/loader:1839:10)
+    at Module.load (node:intern
+al/modules/cjs/loader:1441:32)
+    at Function._load (node:int
+ernal/modules/cjs/loader:1263:1
+2)
+    at 
+TracingChannel.traceSync (node:
+diagnostics_channel:322:14) {
+  status: 1,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 5708,
+  stdout: null,
+  stderr: null
+}
+
+Node.js v22.20.0
