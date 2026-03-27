@@ -38,7 +38,7 @@ export function ERDiagramPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('http://localhost:8001/schema?infer=true')
+    fetch('http://localhost:8000/schema?infer=true')
       .then(res => res.json())
       .then(data => {
         setGraphData(schemaToGraph(data))
@@ -594,7 +594,7 @@ export function ConnectionsPage() {
   const [connInfo, setConnInfo] = useState({ status: 'disconnected', url: '', engine: '' })
 
   useEffect(() => {
-    fetch('http://localhost:8001/schema?infer=true')
+    fetch('http://localhost:8000/schema?infer=true')
       .then(res => res.json())
       .then(data => {
         const nodes = data.tables || []
@@ -604,7 +604,7 @@ export function ConnectionsPage() {
       })
       .catch(err => console.error(err))
 
-    fetch('http://localhost:8001/connection')
+    fetch('http://localhost:8000/api/connection')
       .then(res => res.json())
       .then(setConnInfo)
       .catch(console.error)

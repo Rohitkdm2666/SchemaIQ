@@ -1,26 +1,43 @@
 """
 SchemaIQ QueryBot Backend
-FastAPI + SQLite + Gemini API (Text-to-SQL)
+FastAPI + SQLAlchemy + Gemini API (Text-to-SQL)
+Supports dynamically connecting to SQLite, MySQL, PostgreSQL, MSSQL, or CSVs.
 """
 
 import os
 import json
 import re
-import sqlite3
+import time
 import traceback
+import pandas as pd
 from pathlib import Path
 from typing import Optional
+
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+from agent.monitor import monitor
+from agent.anomaly_model import detect_table_anomalies
+from agent.rules_model import discover_table_rules
+
+# Schema Intelligence Engine Routers
+from routes.connection import router as connection_router
+from routes.profile import router as profile_router
+from routes.preview import router as preview_router
+from routes.upload import router as upload_router
+from routes.schema import router as schema_router
+from routes.twif import router as twif_router
 
 import google.generativeai as genai
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 
 load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
-DB_PATH = Path(__file__).parent / "olist.db"
 API_KEY = os.getenv("GEMINI_API_KEY", "")
 MODEL   = "gemini-2.5-flash"
 
@@ -32,102 +49,106 @@ def get_client():
         raise HTTPException(status_code=503, detail="GEMINI_API_KEY not set in .env")
     return genai.GenerativeModel(MODEL)
 
+# ── Database Engine ───────────────────────────────────────────────────────────
+DEFAULT_DB_PATH = Path(__file__).parent / "olist.db"
+DB_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")
+
+engine = None
+def initialize_engine():
+    global engine
+    try:
+        if DB_URL.endswith(".csv"):
+            engine = create_engine("sqlite:///:memory:")
+            df = pd.read_csv(DB_URL)
+            tname = Path(DB_URL).stem.lower().replace(" ", "_").replace("-", "_")
+            df.to_sql(tname, engine, index=False)
+        else:
+            engine = create_engine(DB_URL)
+    except Exception as e:
+        print(f"Failed to connect to database at {DB_URL}: {e}")
+
+initialize_engine()
+
+def check_db():
+    if engine is None:
+        raise HTTPException(status_code=503, detail="Database engine not initialized. Check DATABASE_URL.")
+    try:
+        with engine.connect() as conn:
+            pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {e}")
+
 # ── App ───────────────────────────────────────────────────────────────────────
-app = FastAPI(title="SchemaIQ QueryBot API")
+app = FastAPI(title="SchemaIQ Dynamic DB API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "https://schemaiqdashboard.netlify.app"],
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
-# ── Schema context ────────────────────────────────────────────────────────────
-OLIST_SCHEMA = """
-You are a SQL expert working with the Olist Brazilian E-Commerce database (SQLite).
+# ── Mount Schema Intelligence Routes ──────────────────────────────────────────
+app.include_router(connection_router, prefix="/api")
+app.include_router(upload_router, prefix="/api")
+app.include_router(schema_router, prefix="/api")
+app.include_router(profile_router, prefix="/api")
+app.include_router(preview_router, prefix="/api")
+app.include_router(twif_router, prefix="/api")
 
-DATABASE SCHEMA:
----------------
-customers (99,441 rows)
-  - customer_id          TEXT PRIMARY KEY
-  - customer_unique_id   TEXT
-  - customer_zip_code_prefix  INTEGER
-  - customer_city        TEXT
-  - customer_state       TEXT  (2-letter Brazilian state e.g. SP, RJ)
+# ── Dynamic Schema Extraction ─────────────────────────────────────────────────
+CACHED_PROMPT = None
 
-orders (99,441 rows)
-  - order_id                          TEXT PRIMARY KEY
-  - customer_id                       TEXT  FK→customers
-  - order_status                      TEXT  (delivered|shipped|processing|canceled|...)
-  - order_purchase_timestamp          TEXT  (ISO datetime)
-  - order_approved_at                 TEXT
-  - order_delivered_carrier_date      TEXT
-  - order_delivered_customer_date     TEXT
-  - order_estimated_delivery_date     TEXT
+def generate_dynamic_schema_prompt():
+    global CACHED_PROMPT
+    if CACHED_PROMPT:
+        return CACHED_PROMPT
 
-order_items (112,650 rows)
-  - order_id             TEXT  FK→orders
-  - order_item_id        INTEGER
-  - product_id           TEXT  FK→products
-  - seller_id            TEXT  FK→sellers
-  - shipping_limit_date  TEXT
-  - price                REAL  (BRL)
-  - freight_value        REAL  (BRL)
+    check_db()
+    insp = inspect(engine)
+    tables = insp.get_table_names()
+    
+    prompt_lines = [
+        "You are a SQL expert AI working with a relational database.",
+        "Generate a valid SQL query based on the following dynamic database schema:\n",
+        "DATABASE SCHEMA:",
+        "---------------"
+    ]
+    
+    with engine.connect() as conn:
+        for tname in tables:
+            try:
+                cnt = conn.execute(text(f'SELECT COUNT(*) FROM "{tname}"')).scalar()
+            except:
+                cnt = "Unknown"
+            prompt_lines.append(f"\n{tname} ({cnt} rows)")
+            
+            pks = insp.get_pk_constraint(tname).get("constrained_columns", [])
+            fks = insp.get_foreign_keys(tname)
+            fk_map = {fk["constrained_columns"][0]: f'{fk["referred_table"]}.{fk["referred_columns"][0]}' for fk in fks if fk["constrained_columns"]}
+            
+            columns = insp.get_columns(tname)
+            for c in columns:
+                cname = c["name"]
+                ctype = str(c["type"])
+                tags = []
+                if cname in pks: tags.append("PRIMARY KEY")
+                if cname in fk_map: tags.append(f"FK→{fk_map[cname]}")
+                tag_str = " ".join(tags)
+                prompt_lines.append(f"  - {cname:<24} {ctype:<10} {tag_str}")
 
-order_payments (103,886 rows)
-  - order_id             TEXT  FK→orders
-  - payment_sequential   INTEGER
-  - payment_type         TEXT  (credit_card|boleto|voucher|debit_card)
-  - payment_installments INTEGER
-  - payment_value        REAL  (BRL)
+    prompt_lines.append("\nIMPORTANT RULES:")
+    prompt_lines.append("- Output ONLY a valid JSON object")
+    prompt_lines.append("- LIMIT results to 20 rows unless explicitly requested")
+    
+    CACHED_PROMPT = "\n".join(prompt_lines)
+    return CACHED_PROMPT
 
-order_reviews (99,224 rows)
-  - review_id            TEXT PRIMARY KEY
-  - order_id             TEXT  FK→orders
-  - review_score         INTEGER  (1-5)
-  - review_comment_title TEXT
-  - review_comment_message TEXT
-  - review_creation_date TEXT
-  - review_answer_timestamp TEXT
+def get_sql_system_prompt():
+    return generate_dynamic_schema_prompt() + """
 
-products (32,951 rows)
-  - product_id                    TEXT PRIMARY KEY
-  - product_category_name         TEXT  (Portuguese)
-  - product_name_lenght           INTEGER
-  - product_description_lenght    INTEGER
-  - product_photos_qty            INTEGER
-  - product_weight_g              INTEGER
-  - product_length_cm             INTEGER
-  - product_height_cm             INTEGER
-  - product_width_cm              INTEGER
-
-sellers (3,095 rows)
-  - seller_id            TEXT PRIMARY KEY
-  - seller_zip_code_prefix INTEGER
-  - seller_city          TEXT
-  - seller_state         TEXT
-
-geolocation (1,000,163 rows)
-  - geolocation_zip_code_prefix  INTEGER
-  - geolocation_lat              REAL
-  - geolocation_lng              REAL
-  - geolocation_city             TEXT
-  - geolocation_state            TEXT
-
-product_category_name_translation (71 rows)
-  - product_category_name         TEXT  (Portuguese)
-  - product_category_name_english TEXT  (English)
-
-IMPORTANT:
-- Dates are TEXT: use strftime('%Y-%m-%d', column) for filtering
-- For revenue: SUM(price + freight_value) from order_items
-- Always filter orders by order_status='delivered' for revenue queries
-- LIMIT to 20 rows unless user asks for more
-"""
-
-SQL_SYSTEM_PROMPT = OLIST_SCHEMA + """
-
-Task: Convert the user's natural language question into a SQLite SQL query.
+Task: Convert the user's natural language question into a working SQL query for this specific dialect.
 
 Return ONLY a valid JSON object — no markdown, no explanation, no code fences:
 {
@@ -154,76 +175,48 @@ Return ONLY a valid JSON object — no markdown, no code fences:
 }
 """
 
-# ── DB helpers ────────────────────────────────────────────────────────────────
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def run_query(sql: str):
-    try:
-        conn = get_db()
-        cur  = conn.cursor()
-        cur.execute(sql)
-        rows    = [dict(r) for r in cur.fetchall()]
-        columns = [d[0] for d in cur.description] if cur.description else []
-        conn.close()
-        return columns, rows, None
-    except Exception as e:
-        return [], [], str(e)
-
-def check_db():
-    if not DB_PATH.exists():
-        raise HTTPException(
-            status_code=503,
-            detail=f"Database not found. Run: python load_data.py --data ./data"
-        )
-
 def clean_json(raw: str) -> str:
-    """Strip markdown fences Gemini sometimes adds."""
     raw = raw.strip()
-    # Remove ```json ... ``` or ``` ... ```
     raw = re.sub(r'^```(?:json)?\s*', '', raw)
     raw = re.sub(r'\s*```$', '', raw)
     return raw.strip()
 
+# ── DB Execution ─────────────────────────────────────────────────────────────
+def run_query(sql_query: str):
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(sql_query))
+            if result.returns_rows:
+                columns = list(result.keys())
+                rows = [dict(zip(columns, row)) for row in result.fetchall()]
+                return columns, rows, None
+            return [], [], None
+    except Exception as e:
+        return [], [], str(e)
+
 # ── Gemini helpers ────────────────────────────────────────────────────────────
 def ask_gemini_sql(question: str) -> dict:
     client = get_client()
-    prompt = SQL_SYSTEM_PROMPT + f"\n\nQuestion: {question}"
+    prompt = get_sql_system_prompt() + f"\n\nQuestion: {question}"
     resp = client.generate_content(prompt)
     raw  = clean_json(resp.text)
     return json.loads(raw)
 
-def ask_gemini_format(question: str, sql: str, results: list) -> dict:
+def ask_gemini_format(question: str, sql_query: str, results: list) -> dict:
     client = get_client()
-    prompt = FORMAT_SYSTEM_PROMPT + f"""
-
-Question: {question}
-
-SQL used:
-{sql}
-
-Results ({len(results)} rows):
-{json.dumps(results[:20], indent=2)}
-"""
+    prompt = FORMAT_SYSTEM_PROMPT + f"\n\nQuestion: {question}\n\nSQL used:\n{sql_query}\n\nResults:\n{json.dumps(results[:20], indent=2)}"
     resp = client.generate_content(prompt)
     raw  = clean_json(resp.text)
     return json.loads(raw)
 
 def build_chart_data(columns: list, rows: list, chart_type: str):
-    if not rows or not columns:
-        return None
-    if chart_type in ("bar", "line"):
+    if not rows or not columns: return None
+    if chart_type in ("bar", "line") and len(columns) > 0:
         label_col = columns[0]
         value_col = columns[1] if len(columns) > 1 else columns[0]
-        return [
-            {"name": str(r.get(label_col, ""))[:24], "value": r.get(value_col, 0)}
-            for r in rows[:30]
-        ]
+        return [{"name": str(r.get(label_col, ""))[:24], "value": r.get(value_col, 0)} for r in rows[:30]]
     if chart_type == "number":
-        first_val = list(rows[0].values())[0] if rows else 0
-        return [{"value": first_val}]
+        return [{"value": list(rows[0].values())[0] if rows else 0}]
     return None
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -245,76 +238,171 @@ class ChatResponse(BaseModel):
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/")
 def root():
-    return {"status": "SchemaIQ QueryBot API", "db": str(DB_PATH), "db_exists": DB_PATH.exists()}
+    return {"status": "SchemaIQ DB-Agnostic Engine", "db_url": DB_URL.split('@')[-1] if '@' in DB_URL else DB_URL, "ready": engine is not None}
 
 @app.get("/health")
 def health():
-    return {"db": DB_PATH.exists(), "anthropic_api": bool(API_KEY), "ready": DB_PATH.exists() and bool(API_KEY)}
-
-@app.get("/tables")
-def list_tables():
-    check_db()
-    _, rows, err = run_query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-    if err:
-        raise HTTPException(status_code=500, detail=err)
-    return {"tables": [r["name"] for r in rows]}
+    return {"db_connected": engine is not None, "api_key_set": bool(API_KEY)}
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     check_db()
     question = req.question.strip()
-    if not question:
-        raise HTTPException(status_code=400, detail="Question cannot be empty")
+    if not question: raise HTTPException(status_code=400, detail="Empty question")
 
+    t0 = time.time()
+    sql_query = None
     try:
-        # Step 1 — Gemini generates SQL
         sql_resp   = ask_gemini_sql(question)
-        sql        = sql_resp.get("sql", "").strip()
+        sql_query  = sql_resp.get("sql", "").strip()
         chart_type = sql_resp.get("chart_type")
 
-        if not sql:
-            return ChatResponse(text="I couldn't generate a SQL query for that. Try rephrasing.", error="No SQL generated")
+        if not sql_query:
+            monitor.record_query(question, None, False, (time.time()-t0)*1000, "No SQL generated")
+            return ChatResponse(text="I couldn't generate a SQL query.", error="No SQL generated")
 
-        # Step 2 — Execute on SQLite
-        columns, rows, db_error = run_query(sql)
-
-        if db_error:
-            # Retry — tell Gemini the error
-            retry = f"The SQL failed: {db_error}\n\nFailed SQL:\n{sql}\n\nOriginal question: {question}\n\nFix the SQL and return corrected JSON."
-            sql_resp2  = ask_gemini_sql(retry)
-            sql        = sql_resp2.get("sql", sql).strip()
+        columns, rows, error = run_query(sql_query)
+        if error:
+            sql_resp2 = ask_gemini_sql(f"SQL failed: {error}\nFailed SQL:\n{sql_query}\nFix it.")
+            sql_query = sql_resp2.get("sql", sql_query).strip()
             chart_type = sql_resp2.get("chart_type", chart_type)
-            columns, rows, db_error = run_query(sql)
-            if db_error:
-                return ChatResponse(text=f"SQL error: `{db_error}`", sql=sql, error=db_error)
+            columns, rows, error = run_query(sql_query)
+            if error:
+                monitor.record_query(question, sql_query, False, (time.time()-t0)*1000, error)
+                return ChatResponse(text=f"SQL error: `{error}`", sql=sql_query, error=error)
 
-        # Step 3 — Gemini formats results
-        fmt     = ask_gemini_format(question, sql, rows)
-        text    = fmt.get("text", "Here are the results.")
+        fmt = ask_gemini_format(question, sql_query, rows)
+        text = fmt.get("text", "Results compiled.")
         insight = fmt.get("insight")
 
-        # Step 4 — Build chart data
         chart_data = build_chart_data(columns, rows, chart_type)
-
+        monitor.record_query(question, sql_query, True, (time.time()-t0)*1000)
         return ChatResponse(
-            text=text, insight=insight, sql=sql,
+            text=text, insight=insight, sql=sql_query,
             chart_type=chart_type, chart_data=chart_data,
-            columns=columns, rows=rows[:100], row_count=len(rows),
+            columns=columns, rows=rows[:100], row_count=len(rows)
         )
-
-    except json.JSONDecodeError as e:
-        return ChatResponse(text="Couldn't parse AI response. Please try again.", error=f"JSON error: {e}")
     except Exception as e:
         traceback.print_exc()
-        return ChatResponse(text="Something went wrong. Please try again.", error=str(e))
+        monitor.record_query(question, sql_query, False, (time.time()-t0)*1000, str(e))
+        return ChatResponse(text="Error processing request.", error=str(e))
 
-@app.post("/sql")
-def run_raw_sql(body: dict):
+@app.get("/schema")
+def get_schema():
     check_db()
-    sql = body.get("sql", "")
-    if not sql:
-        raise HTTPException(status_code=400, detail="No SQL provided")
-    columns, rows, error = run_query(sql)
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-    return {"columns": columns, "rows": rows, "count": len(rows)}
+    insp = inspect(engine)
+    tables = []
+    relationships = []
+    
+    for tname in insp.get_table_names():
+        cols = insp.get_columns(tname)
+        pks = insp.get_pk_constraint(tname).get("constrained_columns", [])
+        fks = insp.get_foreign_keys(tname)
+
+        # Build column objects
+        schema_cols = []
+        for c in cols:
+            schema_cols.append({
+                "name": c["name"],
+                "type": str(c["type"]),
+                "notnull": not c.get("nullable", True),
+                "pk": c["name"] in pks
+            })
+
+        # Build FK mappings
+        fk_list = []
+        for fk in fks:
+            source_col = fk["constrained_columns"][0] if fk["constrained_columns"] else None
+            target_col = fk["referred_columns"][0] if fk["referred_columns"] else None
+            if source_col and target_col:
+                relationships.append({
+                    "from_table": tname,
+                    "from_col": source_col,
+                    "to_table": fk["referred_table"],
+                    "to_col": target_col,
+                    "cardinality": "N:1",
+                })
+                fk_list.append({"from_col": source_col, "to_table": fk["referred_table"], "to_col": target_col})
+
+        try:
+            with engine.connect() as conn:
+                rcnt = conn.execute(text(f'SELECT COUNT(*) FROM "{tname}"')).scalar()
+        except:
+            rcnt = 0
+
+        tables.append({
+            "name": tname,
+            "columns": schema_cols,
+            "primary_keys": pks,
+            "foreign_keys": fk_list,
+            "row_count": rcnt
+        })
+
+    return {"tables": tables, "relationships": relationships}
+
+@app.get("/profile")
+def get_profile():
+    check_db()
+    insp = inspect(engine)
+    table_profiles = []
+    total_completeness = 0
+    tcount = 0
+
+    for tname in insp.get_table_names():
+        try:
+            with engine.connect() as conn:
+                row_count = conn.execute(text(f'SELECT COUNT(*) FROM "{tname}"')).scalar()
+                
+                if not row_count or row_count == 0:
+                    table_profiles.append({"table": tname, "row_count": 0, "quality_score": 100.0, "columns": []})
+                    continue
+
+                cols = insp.get_columns(tname)
+                col_profiles = []
+                nulls_t = 0
+                
+                for c in cols:
+                    cname = c["name"]
+                    n_cnt = conn.execute(text(f'SELECT COUNT(*) FROM "{tname}" WHERE "{cname}" IS NULL')).scalar() or 0
+                    dist = conn.execute(text(f'SELECT COUNT(DISTINCT "{cname}") FROM "{tname}"')).scalar() or 0
+                    
+                    null_pct = round((n_cnt / row_count) * 100, 2)
+                    col_profiles.append({
+                        "name": cname, "null_count": n_cnt, "null_pct": null_pct, "distinct_count": dist
+                    })
+                    nulls_t += n_cnt
+
+                score = round((1 - (nulls_t / (row_count * len(cols)))) * 100, 1)
+                total_completeness += score
+                
+                # Route through custom AI Models
+                anomalies = []
+                rules = []
+                try:
+                    anomalies = detect_table_anomalies(engine, tname)
+                    rules = discover_table_rules(engine, tname)
+                except Exception as ml_err:
+                    print(f"ML Models failed for {tname}: {ml_err}")
+
+                table_profiles.append({
+                    "table": tname, 
+                    "row_count": row_count, 
+                    "quality_score": score, 
+                    "columns": col_profiles,
+                    "anomalies": anomalies,
+                    "rules": rules
+                })
+                tcount += 1
+        except Exception as e:
+            print(f"Error profiling {tname}: {e}")
+
+    overall = round(total_completeness / tcount, 1) if tcount else 100
+    return {"overall_quality": overall, "table_count": tcount, "tables": table_profiles}
+
+@app.get("/metrics")
+def get_metrics():
+    stats = monitor.get_stats()
+    stats["db_exists"] = engine is not None
+    stats["api_key_set"] = bool(API_KEY)
+    stats["sql_dialect"] = engine.name if engine else "Offline"
+    return stats

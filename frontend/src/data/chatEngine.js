@@ -69,3 +69,64 @@ export async function checkHealth() {
     return { db: false, anthropic_api: false, ready: false }
   }
 }
+
+export async function fetchSchema() {
+  try {
+    const res = await fetch(`${API_BASE}/schema`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+export async function fetchProfile() {
+  try {
+    const res = await fetch(`${API_BASE}/profile`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+export async function fetchMetrics() {
+  try {
+    const res = await fetch(`${API_BASE}/metrics`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+// ─── SCHEMA INTELLIGENCE ENGINE (TWIF) ROUTES ──────────────────────────────
+export async function runTwifDemo(db_path) {
+  try {
+    const res = await fetch(`${API_BASE}/api/twif/demo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ db_path })
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+export async function trainTwifModel(payload) {
+  try {
+    const res = await fetch(`${API_BASE}/api/twif/train`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+export async function detectTwifAnomalies(payload) {
+  try {
+    const res = await fetch(`${API_BASE}/api/twif/detect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
