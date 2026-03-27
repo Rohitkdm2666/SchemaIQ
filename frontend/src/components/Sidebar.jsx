@@ -2,24 +2,32 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const NAV = [
-  { section: 'Overview', items: [
-    { icon: '⊞', label: 'Dashboard', to: '/' },
-    { icon: '⛁', label: 'DB Connections', to: '/connections' },
-  ]},
-  { section: 'Analysis', items: [
-    { icon: '◈', label: 'Schema Explorer', to: '/schema' },
-    { icon: '⬡', label: 'ER Diagram', to: '/er-diagram' },
-    { icon: '≡', label: 'Data Dictionary', to: '/dictionary' },
-  ]},
-  { section: 'Intelligence', items: [
-    { icon: '◉', label: 'Data Quality', to: '/quality' },
-    { icon: '⬢', label: 'AI Agents', to: '/agents' },
-    { icon: '🧩', label: 'Insights', to: '/insights' },
-    { icon: '💬', label: 'QueryBot', to: '/querybot' },
-  ]},
-  { section: 'System', items: [
-    { icon: '⚙', label: 'Settings', to: '/settings' },
-  ]},
+  {
+    section: 'Overview', items: [
+      { icon: '⊞', label: 'Dashboard', to: '/' },
+      { icon: '⛁', label: 'DB Connections', to: '/connections' },
+    ]
+  },
+  {
+    section: 'Analysis', items: [
+      { icon: '◈', label: 'Schema Explorer', to: '/schema' },
+      { icon: '⬡', label: 'ER Diagram', to: '/er-diagram' },
+      { icon: '≡', label: 'Data Dictionary', to: '/dictionary' },
+    ]
+  },
+  {
+    section: 'Intelligence', items: [
+      { icon: '◉', label: 'Data Quality', to: '/quality' },
+      { icon: '⬢', label: 'AI Agents', to: '/agents' },
+      { icon: '🧩', label: 'Insights', to: '/insights' },
+      { icon: '💬', label: 'QueryBot', to: '/querybot' },
+    ]
+  },
+  {
+    section: 'System', items: [
+      { icon: '⚙', label: 'Settings', to: '/settings' },
+    ]
+  },
 ]
 
 export default function Sidebar() {
@@ -39,18 +47,17 @@ export default function Sidebar() {
       {/* Top accent */}
       <div style={{ height: 2, background: 'linear-gradient(to right, #c0392b, #f0828a, transparent)', flexShrink: 0 }} />
 
-      {/* Logo */}
       <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #1e1e2e', flexShrink: 0 }}>
-        <div style={{
-          width: 40, height: 40, background: '#c0392b', borderRadius: 10,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 20, marginBottom: 12,
-          boxShadow: '0 4px 20px rgba(192,57,43,0.4)',
-        }}>🧠</div>
-        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 15, fontWeight: 700, color: '#f0828a', letterSpacing: '0.02em' }}>
-          SchemaIQ
-        </div>
-        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, color: '#444458', marginTop: 4, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+        <img
+          src="/schemaiqlogo.png"
+          alt="SchemaIQ Logo"
+          style={{
+            width: 140, // Increased width to account for combined logo + text in image
+            height: 'auto',
+            display: 'block'
+          }}
+        />
+        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, color: '#444458', marginTop: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
           AI Data Intelligence · v1.0
         </div>
       </div>
