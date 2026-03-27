@@ -42,7 +42,7 @@ export default function SchemaPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('http://localhost:8000/schema?infer=true')
+    fetch('http://localhost:8001/api/schema?infer=true')
       .then(r => r.json())
       .then(data => {
         const tData = {};

@@ -38,7 +38,7 @@ export function ERDiagramPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('http://localhost:8000/schema?infer=true')
+    fetch('http://localhost:8001/api/schema?infer=true')
       .then(res => res.json())
       .then(data => {
         setGraphData(schemaToGraph(data))
@@ -245,10 +245,36 @@ const DICT_TABLES = [
 const TV = { PK: 'pk', FK: 'fk', IDX: 'idx', 'NOT NULL': 'nn', NULLABLE: 'warn' }
 
 export function DictionaryPage() {
+  const [dictTables, setDictTables] = useState(DICT_TABLES)
   const [activeTab, setActiveTab] = useState('customers')
   const [search, setSearch] = useState('')
-  const t = DICT_TABLES.find(x => x.name === activeTab)
-  const cols = t.columns.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.biz.toLowerCase().includes(search.toLowerCase()))
+
+  useEffect(() => {
+    fetch('http://localhost:8001/api/schema')
+      .then(res => res.json())
+      .then(data => {
+         if (data.tables && data.tables.length > 0) {
+            const parsed = data.tables.map(t => ({
+               name: t.name,
+               rows: t.row_count || 0,
+               cols: t.columns.length,
+               pk: t.primary_keys ? t.primary_keys.join(', ') : '',
+               summary: 'Dynamically loaded from database schema.',
+               columns: t.columns.map(c => ({
+                  name: c.name, type: c.type, 
+                  tags: [(c.pk ? 'PK' : ''), (!c.notnull ? 'NULLABLE' : 'NOT NULL')].filter(Boolean),
+                  desc: 'Auto-extracted column.', biz: 'Pending AI context.'
+               }))
+            }))
+            setDictTables(parsed)
+            setActiveTab(parsed[0].name)
+         }
+      })
+      .catch(err => console.error(err))
+  }, [])
+
+  const t = dictTables.find(x => x.name === activeTab) || dictTables[0] || { name: 'Loading...', columns: [], rows: 0, cols: 0 }
+  const cols = (t.columns || []).filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.biz || '').toLowerCase().includes(search.toLowerCase()))
 
   return (
     <div>
@@ -260,7 +286,7 @@ export function DictionaryPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-        {DICT_TABLES.map(tb => (
+        {dictTables.map(tb => (
           <button key={tb.name} onClick={() => setActiveTab(tb.name)} style={{
             fontFamily: "'Space Mono',monospace", fontSize: 12, padding: '9px 18px',
             borderRadius: 8, border: `1px solid ${tb.name === activeTab ? '#c0392b' : '#1e1e2e'}`,
@@ -355,9 +381,36 @@ export function QualityPage() {
     { label: 'Validity', pct: 91.8, stroke: '#f39c12' }, { label: 'FK Integrity', pct: 100, stroke: '#27ae60' },
     { label: 'Uniqueness', pct: 88.4, stroke: '#2980b9' },
   ]
+  const [perTable, setPerTable] = useState(PER_TABLE)
+  const [issues, setIssues] = useState(ISSUES)
+  const [overallQuality, setOverallQuality] = useState(94.2)
+
+  useEffect(() => {
+    fetch('http://localhost:8001/api/profile')
+      .then(res => res.json())
+      .then(data => {
+         if (data.tables) {
+            const newTabs = data.tables.map(t => ({
+               name: t.table,
+               score: t.quality_score,
+               color: t.quality_score >= 95 ? '#27ae60' : t.quality_score >= 85 ? '#f39c12' : '#e74c3c'
+            }))
+            setPerTable(newTabs)
+            setOverallQuality(data.overall_quality)
+            
+            const newIssues = []
+            data.tables.forEach(t => {
+               (t.anomalies || []).forEach(a => newIssues.push({ sev: 'err', title: `Anomaly in ${t.table}`, desc: a }))
+               ;(t.rules || []).forEach(r => newIssues.push({ sev: 'ok', title: `Rule for ${t.table}`, desc: r }))
+            })
+            if (newIssues.length > 0) setIssues(newIssues.slice(0, 10))
+         }
+      }).catch(console.error)
+  }, [])
+
   return (
     <div>
-      <PageHeader title="Data Quality Report" sub="Statistical Profiling Agent · Overall score: 94.2% — Excellent ✅">
+      <PageHeader title="Data Quality Report" sub={`Statistical Profiling Agent · Overall score: ${overallQuality}% — Real-time ✅`}>
         <Button variant="primary">⬇ Export Report</Button>
       </PageHeader>
 
@@ -391,7 +444,7 @@ export function QualityPage() {
         <Panel>
           <PanelHeader title="Quality Score by Table" />
           <PanelBody>
-            {PER_TABLE.map(t => (
+            {perTable.map(t => (
               <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 0', borderBottom: '1px solid rgba(30,30,46,0.5)' }}>
                 <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, color: '#f0828a', minWidth: 130 }}>{t.name}</span>
                 <div style={{ flex: 1, height: 6, background: '#1e1e2e', borderRadius: 3, overflow: 'hidden' }}>
@@ -406,12 +459,12 @@ export function QualityPage() {
 
         {/* Issues */}
         <Panel>
-          <PanelHeader title="Quality Issues Detected (5)">
-            <Tag variant="warn">3 Warnings · 1 Error</Tag>
+          <PanelHeader title={`Quality Issues Detected (${issues.length})`}>
+            <Tag variant="warn">Dynamic Profiler</Tag>
           </PanelHeader>
           <PanelBody>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {ISSUES.map((issue, i) => (
+              {issues.map((issue, i) => (
                 <div key={i} style={{ display: 'flex', gap: 14, background: '#16161f', border: '1px solid #1e1e2e', borderRadius: 10, padding: '14px 16px' }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: sevColor[issue.sev], marginTop: 4, flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
@@ -592,9 +645,14 @@ export function AgentsPage() {
 export function ConnectionsPage() {
   const [dbData, setDbData] = useState({ tables: 0, cols: 0, rels: 0 })
   const [connInfo, setConnInfo] = useState({ status: 'disconnected', url: '', engine: '' })
+  const [customDbUrl, setCustomDbUrl] = useState("")
+  const [log, setLog] = useState([
+    { color: '#27ae60', msg: '  [ OK ] DB Connection UI Ready' },
+  ])
+  const [testing, setTesting] = useState(false)
 
-  useEffect(() => {
-    fetch('http://localhost:8000/schema?infer=true')
+  const fetchData = () => {
+    fetch('http://localhost:8001/api/schema?infer=true')
       .then(res => res.json())
       .then(data => {
         const nodes = data.tables || []
@@ -604,19 +662,13 @@ export function ConnectionsPage() {
       })
       .catch(err => console.error(err))
 
-    fetch('http://localhost:8000/api/connection')
+    fetch('http://localhost:8001/api/connection')
       .then(res => res.json())
       .then(setConnInfo)
       .catch(console.error)
-  }, [])
+  }
 
-  const [log, setLog] = useState([
-    { color: '#27ae60', msg: '  [ OK ] Authentication successful' },
-    { color: '#27ae60', msg: '  [ OK ] SSL TLS 1.3 established' },
-    { color: '#27ae60', msg: '  [ OK ] Live Sync Active' },
-    { color: '#27ae60', msg: '  [ OK ] Round-trip latency: 12ms' },
-  ])
-  const [testing, setTesting] = useState(false)
+  useEffect(() => { fetchData() }, [])
 
   const parseUrl = (url) => {
     if (!url) return { proto: '', user: '', hostPort: '', db: '' }
@@ -632,22 +684,27 @@ export function ConnectionsPage() {
   const parsed = parseUrl(connInfo.url)
 
   const runTest = async () => {
-    setTesting(true); setLog([])
-    const lines = [
-      { color: '#3498db', msg: `[ INFO ] Connecting to ${parsed.hostPort || 'dynamic'}...` },
-      { color: '#3498db', msg: `[ INFO ] Authenticating as ${parsed.user || 'user'}...` },
-      { color: '#27ae60', msg: '  [ OK ] Authentication successful' },
-      { color: '#27ae60', msg: '  [ OK ] Connection established' },
-      { color: '#3498db', msg: '[ INFO ] Scanning schema metadata...' },
-      { color: '#27ae60', msg: `  [ OK ] ${dbData.tables || 0} tables discovered` },
-      { color: '#27ae60', msg: `  [ OK ] ${dbData.cols || 0} columns mapped` },
-      { color: '#27ae60', msg: `  [ OK ] ${dbData.rels || 0} FK relationships detected` },
-      { color: '#27ae60', msg: '  [ OK ] Round-trip latency: 12ms' },
-      { color: '#27ae60', msg: '  [ OK ] Engine Synced ✓' },
-    ]
-    for (const line of lines) {
-      await new Promise(r => setTimeout(r, 250))
-      setLog(prev => [...prev, line])
+    setTesting(true); 
+    setLog([{ color: '#3498db', msg: `[ INFO ] Testing connection/saving DB URL...` }])
+    
+    // Auto-construct URL if none provided manually
+    let finalUrl = customDbUrl || "sqlite:///olist.db"
+    
+    try {
+      const res = await fetch('http://localhost:8001/api/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ db_url: finalUrl })
+      })
+      const data = await res.json()
+      if (res.ok && data.status === 'connected') {
+        setLog(prev => [...prev, { color: '#27ae60', msg: `  [ OK ] Connection successful to ${finalUrl}` }])
+        fetchData() // Refresh everything
+      } else {
+        setLog(prev => [...prev, { color: '#e74c3c', msg: `  [ ERR ] ${data.detail || 'Connection failed'}` }])
+      }
+    } catch(err) {
+      setLog(prev => [...prev, { color: '#e74c3c', msg: `  [ ERR ] Fetch failed: ${err.message}` }])
     }
     setTesting(false)
   }
@@ -711,24 +768,16 @@ export function ConnectionsPage() {
           <PanelHeader title="Configure Connection" />
           <PanelBody>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div><Label>Connection Name</Label><Input defaultValue="Olist E-Commerce (Production)" /></div>
-              <div><Label>Database Engine</Label>
-                <select style={{ width: '100%', background: '#16161f', border: '1px solid #1e1e2e', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#e8e8f0', outline: 'none' }}>
-                  <option>PostgreSQL</option><option>MySQL</option><option>SQL Server</option><option>SQLite</option>
-                </select>
+              <div><Label>Database URL (Full connection string)</Label>
+                <Input placeholder="e.g. postgresql://user:pass@localhost:5432/db OR sqlite:///data.db OR /path/to/data.csv" 
+                       value={customDbUrl} 
+                       onChange={e => setCustomDbUrl(e.target.value)} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10 }}>
-                <div><Label>Host</Label><Input defaultValue="db.olist.internal" /></div>
-                <div><Label>Port</Label><Input defaultValue="5432" /></div>
-                <div><Label>Database</Label><Input defaultValue="olist_db" /></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div><Label>Username</Label><Input defaultValue="analyst_user" /></div>
-                <div><Label>Password</Label><Input type="password" defaultValue="password123" /></div>
+              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#666680', marginTop: -6 }}>
+                💡 Fast connect using full URL string. Supports MySQL, Postgres, SQLite, CSV.
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                <Button variant="ghost" onClick={runTest}>{testing ? '⟳ Testing…' : '⟳ Test Connection'}</Button>
-                <Button variant="primary">⚡ Connect & Scan</Button>
+                <Button variant="primary" onClick={runTest}>{testing ? '⟳ Connecting…' : '⚡ Connect & Scan'}</Button>
               </div>
             </div>
           </PanelBody>
@@ -805,7 +854,7 @@ export function SettingsPage() {
               {TABS.map(([id, label]) => (
                 <button key={id} onClick={() => setTab(id)} style={{
                   width: '100%', textAlign: 'left', padding: '11px 14px', borderRadius: 8,
-                  fontSize: 13, borderLeft: `3px solid ${tab === id ? '#c0392b' : 'transparent'}`,
+                  fontSize: 13,
                   background: tab === id ? 'rgba(192,57,43,0.08)' : 'transparent',
                   color: tab === id ? '#f0828a' : '#666680', cursor: 'pointer', border: `0 solid transparent`,
                   borderLeft: `3px solid ${tab === id ? '#c0392b' : 'transparent'}`,

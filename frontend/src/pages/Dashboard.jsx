@@ -41,7 +41,7 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    fetch('http://localhost:8000/schema?infer=true')
+    fetch('http://localhost:8001/api/schema?infer=true')
       .then(res => res.json())
       .then(data => {
         const nodes = data.tables || []
@@ -51,7 +51,7 @@ export default function Dashboard() {
       })
       .catch(console.error)
 
-    fetch('http://localhost:8000/api/connection')
+    fetch('http://localhost:8001/api/connection')
       .then(res => res.json())
       .then(setConnInfo)
       .catch(console.error)

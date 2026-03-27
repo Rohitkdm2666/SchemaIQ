@@ -1,7 +1,7 @@
 // chatEngine.js — Real backend connector
 // Replaces the hardcoded mock engine with actual API calls
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8001'
 
 /**
  * Send a question to the backend.

@@ -81,7 +81,7 @@ const S = {
   },
   input: {
     width: '100%', background: '#16161f',
-    border: '1px solid #1e1e2e', borderRadius: 10,
+    borderWidth: 1, borderStyle: 'solid', borderColor: '#1e1e2e', borderRadius: 10,
     padding: '11px 14px', fontSize: 13,
     color: '#e8e8f0', fontFamily: "'Space Mono', monospace",
     outline: 'none', boxSizing: 'border-box',
@@ -98,7 +98,7 @@ const S = {
   },
   errorBox: {
     background: 'rgba(192,57,43,0.12)',
-    border: '1px solid rgba(192,57,43,0.3)',
+    borderWidth: 1, borderStyle: 'solid', borderColor: 'rgba(192,57,43,0.3)',
     borderRadius: 8, padding: '10px 14px',
     fontSize: 12, color: '#f0828a',
     fontFamily: "'Space Mono', monospace",
@@ -130,7 +130,7 @@ const S = {
   },
   credBtn: {
     width: '100%', background: '#16161f',
-    border: '1px solid #1e1e2e', borderRadius: 10,
+    borderWidth: 1, borderStyle: 'solid', borderColor: '#1e1e2e', borderRadius: 10,
     padding: '11px 14px', cursor: 'pointer',
     display: 'flex', alignItems: 'center',
     justifyContent: 'space-between',
@@ -162,7 +162,7 @@ const S = {
   refBox: {
     marginTop: 14,
     background: '#16161f',
-    border: '1px solid #252540',
+    borderWidth: 1, borderStyle: 'solid', borderColor: '#252540',
     borderRadius: 10, padding: '12px 14px',
   },
   refTitle: {
