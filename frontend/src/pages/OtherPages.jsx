@@ -250,27 +250,63 @@ export function DictionaryPage() {
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    fetch('http://localhost:8001/api/schema')
+    // Use the new AI-powered dictionary endpoint
+    fetch('http://localhost:8001/api/dictionary/quick')
       .then(res => res.json())
       .then(data => {
          if (data.tables && data.tables.length > 0) {
             const parsed = data.tables.map(t => ({
                name: t.name,
                rows: t.row_count || 0,
-               cols: t.columns.length,
+               cols: t.column_count || t.columns?.length || 0,
                pk: t.primary_keys ? t.primary_keys.join(', ') : '',
-               summary: 'Dynamically loaded from database schema.',
+               summary: t.business_purpose || t.description || 'AI-generated business context',
+               domain: data.domain_analysis?.primary_domain || 'general',
+               quality: t.completeness_score || 0,
                columns: t.columns.map(c => ({
-                  name: c.name, type: c.type, 
-                  tags: [(c.pk ? 'PK' : ''), (!c.notnull ? 'NULLABLE' : 'NOT NULL')].filter(Boolean),
-                  desc: 'Auto-extracted column.', biz: 'Pending AI context.'
+                  name: c.name, 
+                  type: c.type, 
+                  tags: [
+                     (c.primary_key ? 'PK' : ''), 
+                     (c.foreign_key ? 'FK' : ''),
+                     (c.nullable ? 'NULLABLE' : 'NOT NULL')
+                  ].filter(Boolean),
+                  desc: c.description || 'AI-generated description',
+                  biz: c.business_context || 'AI-inferred business context',
+                  contentType: c.inferred_content_type || 'General data',
+                  quality: c.quality_score || 0,
+                  nullPct: c.null_percentage || 0
                }))
             }))
             setDictTables(parsed)
             setActiveTab(parsed[0].name)
          }
       })
-      .catch(err => console.error(err))
+      .catch(err => {
+         console.error('AI Dictionary API failed, falling back to basic schema:', err)
+         // Fallback to basic schema endpoint
+         fetch('http://localhost:8001/api/schema')
+           .then(res => res.json())
+           .then(data => {
+              if (data.tables && data.tables.length > 0) {
+                 const parsed = data.tables.map(t => ({
+                    name: t.name,
+                    rows: t.row_count || 0,
+                    cols: t.columns.length,
+                    pk: t.primary_keys ? t.primary_keys.join(', ') : '',
+                    summary: 'Basic schema - AI dictionary unavailable',
+                    columns: t.columns.map(c => ({
+                       name: c.name, type: c.type, 
+                       tags: [(c.pk ? 'PK' : ''), (!c.notnull ? 'NULLABLE' : 'NOT NULL')].filter(Boolean),
+                       desc: 'Basic column info', biz: 'AI context unavailable'
+                    }))
+                 }))
+                 setDictTables(parsed)
+                 setActiveTab(parsed[0].name)
+              }
+           })
+           .catch(err2 => console.error('Both endpoints failed:', err2))
+      })
   }, [])
 
   const t = dictTables.find(x => x.name === activeTab) || dictTables[0] || { name: 'Loading...', columns: [], rows: 0, cols: 0 }

@@ -26,6 +26,7 @@ from routes.preview import router as preview_router
 from routes.upload import router as upload_router
 from routes.schema import router as schema_router
 from routes.twif import router as twif_router
+from routes.dictionary import router as dictionary_router
 
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -96,6 +97,7 @@ app.include_router(schema_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
 app.include_router(preview_router, prefix="/api")
 app.include_router(twif_router, prefix="/api")
+app.include_router(dictionary_router, prefix="/api")
 
 # ── Dynamic Schema Extraction ─────────────────────────────────────────────────
 CACHED_PROMPT = None
