@@ -143,6 +143,11 @@ def build_sqlite_from_csv(
 
 def build_sqlite_from_sql(sql_path: Path, sqlite_path: Path) -> str:
     sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+    if sqlite_path.exists():
+        try:
+            sqlite_path.unlink()
+        except OSError:
+            pass
     sql_text = sql_path.read_text(encoding="utf-8")
 
     conn = sqlite3.connect(str(sqlite_path))

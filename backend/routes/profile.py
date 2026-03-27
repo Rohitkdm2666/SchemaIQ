@@ -21,18 +21,22 @@ def get_profile(
     compute_distinct: bool = True,
     include_fk_orphans: bool = True,
 ):
-    engine = get_engine(db_url=db_url)
+    try:
+        engine = get_engine(db_url=db_url)
 
-    raw = inspect_database(engine, schema=schema)
-    structured = extract_schema(raw)
-    if include_fk_orphans:
-        structured = map_foreign_keys(structured)
-    else:
-        for t in structured.get("tables", []) or []:
-            t["foreign_keys"] = []
+        raw = inspect_database(engine, schema=schema)
+        structured = extract_schema(raw)
+        if include_fk_orphans:
+            structured = map_foreign_keys(structured)
+        else:
+            for t in structured.get("tables", []) or []:
+                t["foreign_keys"] = []
 
-    payload = profile_database(engine, structured, compute_distinct=compute_distinct)
-    if not include_fk_orphans:
-        payload["fk_orphans"] = []
+        payload = profile_database(engine, structured, compute_distinct=compute_distinct)
+        if not include_fk_orphans:
+            payload["fk_orphans"] = []
 
-    return payload
+        return payload
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"Profiling failed: {str(e)}")
