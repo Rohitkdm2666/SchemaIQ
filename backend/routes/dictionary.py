@@ -20,6 +20,43 @@ router = APIRouter(prefix="/dictionary", tags=["Data Dictionary"])
 # Initialize the local AI agent
 local_ai = SchemaIQLocalAI()
 
+
+def _empty_dictionary_response(message: str) -> DictionaryResponse:
+    return DictionaryResponse(
+        schema_name="Database Schema",
+        total_tables=0,
+        total_columns=0,
+        total_rows=0,
+        domain_analysis={
+            "primary_domain": "unknown",
+            "confidence": 0.0,
+            "secondary_domains": [],
+            "business_type": "Unknown",
+            "industry_vertical": "Unknown",
+            "complexity_score": 0.0,
+            "description": "",
+            "common_entities": [],
+        },
+        business_summary=message,
+        technical_summary="No schema data available.",
+        quality_summary={
+            "overall_quality": 0.0,
+            "completeness": 0.0,
+            "consistency": 0.0,
+            "data_density": 0.0,
+            "high_quality_tables": 0,
+            "medium_quality_tables": 0,
+            "low_quality_tables": 0,
+            "quality_issues": [],
+            "recommendations": [],
+        },
+        business_workflows=[],
+        tables=[],
+        generated_at=datetime.now().isoformat(),
+        ai_engine="SchemaIQ Local AI Agent v1.0",
+        confidence_score=0.0,
+    )
+
 @router.get("/", response_model=DictionaryResponse)
 async def get_intelligent_dictionary(
     db_url: Optional[str] = Query(None, description="Database URL (uses active connection if not provided)"),
@@ -104,10 +141,7 @@ async def get_quick_dictionary(
     try:
         engine = get_engine(db_url)
         if not engine:
-            raise HTTPException(
-                status_code=400,
-                detail="No database connection available"
-            )
+            return _empty_dictionary_response("No database connection available.")
         
         # Generate dictionary without profiling for speed
         dictionary = local_ai.generate_intelligent_dictionary(
@@ -128,11 +162,10 @@ async def get_quick_dictionary(
         
         return dictionary
         
+    except HTTPException as e:
+        return _empty_dictionary_response(str(e.detail))
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate quick dictionary: {str(e)}"
-        )
+        return _empty_dictionary_response(f"Failed to generate quick dictionary: {str(e)}")
 
 @router.get("/domain-analysis")
 async def get_domain_analysis(

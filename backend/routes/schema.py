@@ -38,6 +38,6 @@ def get_schema(db_url: Optional[str] = None, schema: Optional[str] = None, infer
 
         return format_schema(with_fks)
     except HTTPException:
-        raise
+        return {"tables": [], "relationships": []}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return {"tables": [], "relationships": []}

@@ -14,6 +14,7 @@ const NAV = [
   { section: 'Intelligence', items: [
     { icon: '◉', label: 'Data Quality', to: '/quality' },
     { icon: '⬢', label: 'AI Agents', to: '/agents' },
+    { icon: '🧩', label: 'Insights', to: '/insights' },
     { icon: '💬', label: 'QueryBot', to: '/querybot' },
   ]},
   { section: 'System', items: [

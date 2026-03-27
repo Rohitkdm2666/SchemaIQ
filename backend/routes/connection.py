@@ -32,5 +32,7 @@ def get_connection():
     return {
         "status": "connected",
         "url": db_state.db_url,
-        "engine": engine_name
+        "engine": engine_name,
+        "source": db_state.source,
+        "display_name": db_state.display_name
     }

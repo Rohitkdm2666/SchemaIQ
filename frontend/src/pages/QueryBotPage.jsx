@@ -23,9 +23,9 @@ function Md({ text }) {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/)
   return parts.map((p, i) => {
     if (p.startsWith('**') && p.endsWith('**'))
-      return <strong key={i} style={{ color: '#f0828a', fontWeight: 600 }}>{p.slice(2,-2)}</strong>
+      return <strong key={i} style={{ color: '#f0828a', fontWeight: 600 }}>{p.slice(2, -2)}</strong>
     if (p.startsWith('`') && p.endsWith('`'))
-      return <code key={i} style={{ fontFamily:"'Space Mono',monospace", fontSize:11, background:'#16161f', padding:'1px 6px', borderRadius:4, color:'#3498db' }}>{p.slice(1,-1)}</code>
+      return <code key={i} style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, background: '#16161f', padding: '1px 6px', borderRadius: 4, color: '#3498db' }}>{p.slice(1, -1)}</code>
     return p
   })
 }
@@ -33,12 +33,12 @@ function Md({ text }) {
 // ── Typing indicator ───────────────────────────────────────────────────────
 function TypingIndicator() {
   return (
-    <div style={{ display:'flex', alignItems:'flex-end', gap:12 }}>
-      <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#c0392b,#f0828a)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, flexShrink:0 }}>🧠</div>
-      <div style={{ background:'#16161f', border:'1px solid #1e1e2e', borderRadius:'18px 18px 18px 4px', padding:'14px 18px' }}>
-        <div style={{ display:'flex', gap:5, alignItems:'center' }}>
-          {[0,1,2].map(i => (
-            <div key={i} style={{ width:7, height:7, borderRadius:'50%', background:'#f0828a', animation:'pulseDot 1.4s ease infinite', animationDelay:`${i*200}ms` }}/>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#c0392b,#f0828a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🧠</div>
+      <div style={{ background: '#16161f', border: '1px solid #1e1e2e', borderRadius: '18px 18px 18px 4px', padding: '14px 18px' }}>
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: '#f0828a', animation: 'pulseDot 1.4s ease infinite', animationDelay: `${i * 200}ms` }} />
           ))}
         </div>
       </div>
@@ -50,21 +50,21 @@ function TypingIndicator() {
 function SqlBlock({ sql }) {
   const [open, setOpen] = useState(false)
   return (
-    <div style={{ marginTop:12 }}>
+    <div style={{ marginTop: 12 }}>
       <button onClick={() => setOpen(o => !o)} style={{
-        background:'none', border:'1px solid #252540', borderRadius:6,
-        padding:'5px 12px', fontFamily:"'Space Mono',monospace",
-        fontSize:10, color:'#666680', cursor:'pointer',
-        display:'flex', alignItems:'center', gap:6,
+        background: 'none', border: '1px solid #252540', borderRadius: 6,
+        padding: '5px 12px', fontFamily: "'Space Mono',monospace",
+        fontSize: 10, color: '#666680', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: 6,
       }}>
         {open ? '▾' : '▸'} {open ? 'Hide' : 'Show'} SQL
       </button>
       {open && (
         <pre style={{
-          marginTop:8, background:'#0a0a0f', border:'1px solid #1e1e2e',
-          borderRadius:8, padding:'12px 16px', fontFamily:"'Space Mono',monospace",
-          fontSize:11, color:'#b0b0c8', overflowX:'auto', lineHeight:1.8,
-          whiteSpace:'pre-wrap', wordBreak:'break-word',
+          marginTop: 8, background: '#0a0a0f', border: '1px solid #1e1e2e',
+          borderRadius: 8, padding: '12px 16px', fontFamily: "'Space Mono',monospace",
+          fontSize: 11, color: '#b0b0c8', overflowX: 'auto', lineHeight: 1.8,
+          whiteSpace: 'pre-wrap', wordBreak: 'break-word',
         }}>{sql}</pre>
       )}
     </div>
@@ -78,24 +78,24 @@ function ResultTable({ columns, rows }) {
   const displayed = showAll ? rows : rows.slice(0, MAX_ROWS)
 
   return (
-    <div style={{ marginTop:12, overflowX:'auto' }}>
-      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+    <div style={{ marginTop: 12, overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
         <thead>
-          <tr style={{ background:'#16161f' }}>
+          <tr style={{ background: '#16161f' }}>
             {columns.map(c => (
-              <th key={c} style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:'#666680', textTransform:'uppercase', letterSpacing:'0.08em', padding:'8px 12px', textAlign:'left', borderBottom:'1px solid #1e1e2e', whiteSpace:'nowrap' }}>{c}</th>
+              <th key={c} style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: '#666680', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #1e1e2e', whiteSpace: 'nowrap' }}>{c}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {displayed.map((row, i) => (
-            <tr key={i} style={{ borderBottom:'1px solid rgba(30,30,46,0.5)' }}
-              onMouseEnter={e => e.currentTarget.style.background='rgba(192,57,43,0.04)'}
-              onMouseLeave={e => e.currentTarget.style.background='transparent'}
+            <tr key={i} style={{ borderBottom: '1px solid rgba(30,30,46,0.5)' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(192,57,43,0.04)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               {columns.map(c => (
-                <td key={c} style={{ padding:'8px 12px', color:'#b0b0c8', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {row[c] === null || row[c] === undefined ? <span style={{ color:'#444458' }}>NULL</span> : String(row[c])}
+                <td key={c} style={{ padding: '8px 12px', color: '#b0b0c8', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {row[c] === null || row[c] === undefined ? <span style={{ color: '#444458' }}>NULL</span> : String(row[c])}
                 </td>
               ))}
             </tr>
@@ -103,7 +103,7 @@ function ResultTable({ columns, rows }) {
         </tbody>
       </table>
       {rows.length > MAX_ROWS && !showAll && (
-        <button onClick={() => setShowAll(true)} style={{ marginTop:8, background:'none', border:'1px solid #1e1e2e', borderRadius:6, padding:'5px 14px', fontFamily:"'Space Mono',monospace", fontSize:10, color:'#666680', cursor:'pointer' }}>
+        <button onClick={() => setShowAll(true)} style={{ marginTop: 8, background: 'none', border: '1px solid #1e1e2e', borderRadius: 6, padding: '5px 14px', fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#666680', cursor: 'pointer' }}>
           + {rows.length - MAX_ROWS} more rows
         </button>
       )}
@@ -113,21 +113,21 @@ function ResultTable({ columns, rows }) {
 
 // ── Chart components ───────────────────────────────────────────────────────
 const CHART_TOOLTIP_STYLE = {
-  contentStyle: { background:'#111118', border:'1px solid #1e1e2e', borderRadius:8, fontFamily:'Space Mono', fontSize:11 },
-  itemStyle: { color:'#e8e8f0' },
-  labelStyle: { color:'#f0828a' },
+  contentStyle: { background: '#111118', border: '1px solid #1e1e2e', borderRadius: 8, fontFamily: 'Space Mono', fontSize: 11 },
+  itemStyle: { color: '#e8e8f0' },
+  labelStyle: { color: '#f0828a' },
 }
 
 function ResultBar({ data }) {
   return (
-    <div style={{ background:'#111118', border:'1px solid #1e1e2e', borderRadius:10, padding:'14px', marginTop:12 }}>
+    <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 10, padding: '14px', marginTop: 12 }}>
       <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={data} margin={{ top:4, right:8, bottom:40, left:8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" vertical={false}/>
-          <XAxis dataKey="name" tick={{ fill:'#666680', fontSize:9, fontFamily:'Space Mono' }} axisLine={false} tickLine={false} angle={-30} textAnchor="end" interval={0}/>
-          <YAxis tick={{ fill:'#666680', fontSize:9, fontFamily:'Space Mono' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v}/>
-          <Tooltip {...CHART_TOOLTIP_STYLE} formatter={v => [typeof v === 'number' ? v.toLocaleString() : v, 'value']}/>
-          <Bar dataKey="value" fill="#c0392b" radius={[4,4,0,0]}/>
+        <BarChart data={data} margin={{ top: 4, right: 8, bottom: 40, left: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" vertical={false} />
+          <XAxis dataKey="name" tick={{ fill: '#666680', fontSize: 9, fontFamily: 'Space Mono' }} axisLine={false} tickLine={false} angle={-30} textAnchor="end" interval={0} />
+          <YAxis tick={{ fill: '#666680', fontSize: 9, fontFamily: 'Space Mono' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : v} />
+          <Tooltip {...CHART_TOOLTIP_STYLE} formatter={v => [typeof v === 'number' ? v.toLocaleString() : v, 'value']} />
+          <Bar dataKey="value" fill="#c0392b" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -136,14 +136,14 @@ function ResultBar({ data }) {
 
 function ResultLine({ data }) {
   return (
-    <div style={{ background:'#111118', border:'1px solid #1e1e2e', borderRadius:10, padding:'14px', marginTop:12 }}>
+    <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 10, padding: '14px', marginTop: 12 }}>
       <ResponsiveContainer width="100%" height={180}>
-        <LineChart data={data} margin={{ top:4, right:8, bottom:20, left:8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" vertical={false}/>
-          <XAxis dataKey="name" tick={{ fill:'#666680', fontSize:9, fontFamily:'Space Mono' }} axisLine={false} tickLine={false}/>
-          <YAxis tick={{ fill:'#666680', fontSize:9, fontFamily:'Space Mono' }} axisLine={false} tickLine={false}/>
-          <Tooltip {...CHART_TOOLTIP_STYLE}/>
-          <Line type="monotone" dataKey="value" stroke="#c0392b" strokeWidth={2} dot={{ fill:'#c0392b', r:3 }}/>
+        <LineChart data={data} margin={{ top: 4, right: 8, bottom: 20, left: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" vertical={false} />
+          <XAxis dataKey="name" tick={{ fill: '#666680', fontSize: 9, fontFamily: 'Space Mono' }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: '#666680', fontSize: 9, fontFamily: 'Space Mono' }} axisLine={false} tickLine={false} />
+          <Tooltip {...CHART_TOOLTIP_STYLE} />
+          <Line type="monotone" dataKey="value" stroke="#c0392b" strokeWidth={2} dot={{ fill: '#c0392b', r: 3 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -154,15 +154,15 @@ function ResultNumber({ rows, columns }) {
   const val = rows?.[0] ? Object.values(rows[0])[0] : null
   const label = columns?.[0] || 'Result'
   const formatted = typeof val === 'number'
-    ? val >= 1e6 ? `${(val/1e6).toFixed(2)}M`
-    : val >= 1e3 ? `${(val/1e3).toFixed(1)}K`
-    : val.toLocaleString()
+    ? val >= 1e6 ? `${(val / 1e6).toFixed(2)}M`
+      : val >= 1e3 ? `${(val / 1e3).toFixed(1)}K`
+        : val.toLocaleString()
     : String(val ?? '—')
 
   return (
-    <div style={{ background:'#111118', border:'1px solid #1e1e2e', borderRadius:10, padding:'20px 24px', marginTop:12, textAlign:'center' }}>
-      <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:'#666680', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>{label}</div>
-      <div style={{ fontFamily:"'Space Mono',monospace", fontSize:36, fontWeight:700, color:'#f0828a' }}>{formatted}</div>
+    <div style={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 10, padding: '20px 24px', marginTop: 12, textAlign: 'center' }}>
+      <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: '#666680', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 36, fontWeight: 700, color: '#f0828a' }}>{formatted}</div>
     </div>
   )
 }
@@ -170,9 +170,9 @@ function ResultNumber({ rows, columns }) {
 // ── Message bubble ─────────────────────────────────────────────────────────
 function UserBubble({ text }) {
   return (
-    <div style={{ display:'flex', justifyContent:'flex-end' }}>
-      <div style={{ maxWidth:'72%', background:'rgba(192,57,43,0.18)', border:'1px solid rgba(192,57,43,0.35)', borderRadius:'18px 18px 4px 18px', padding:'13px 18px' }}>
-        <p style={{ fontSize:14, color:'#e8e8f0', lineHeight:1.6, margin:0 }}>{text}</p>
+    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ maxWidth: '72%', background: 'rgba(192,57,43,0.18)', border: '1px solid rgba(192,57,43,0.35)', borderRadius: '18px 18px 4px 18px', padding: '13px 18px' }}>
+        <p style={{ fontSize: 14, color: '#e8e8f0', lineHeight: 1.6, margin: 0 }}>{text}</p>
       </div>
     </div>
   )
@@ -182,57 +182,57 @@ function AssistantBubble({ response, time }) {
   const r = response
 
   return (
-    <div style={{ display:'flex', alignItems:'flex-end', gap:12 }}>
-      <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#c0392b,#f0828a)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, flexShrink:0, marginBottom:20 }}>🧠</div>
-      <div style={{ maxWidth:'88%' }}>
-        <div style={{ background:'#16161f', border:'1px solid #1e1e2e', borderRadius:'18px 18px 18px 4px', padding:'16px 20px' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#c0392b,#f0828a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0, marginBottom: 20 }}>🧠</div>
+      <div style={{ maxWidth: '88%' }}>
+        <div style={{ background: '#16161f', border: '1px solid #1e1e2e', borderRadius: '18px 18px 18px 4px', padding: '16px 20px' }}>
 
           {/* Main text */}
-          <p style={{ fontSize:14, color:'#b0b0c8', lineHeight:1.7, margin:0, whiteSpace:'pre-line' }}>
-            <Md text={r.text}/>
+          <p style={{ fontSize: 14, color: '#b0b0c8', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-line' }}>
+            <Md text={r.text} />
           </p>
 
           {/* Insight */}
           {r.insight && (
-            <div style={{ marginTop:10, background:'rgba(192,57,43,0.08)', border:'1px solid rgba(192,57,43,0.2)', borderRadius:8, padding:'9px 14px', fontSize:12, color:'#b0b0c8', lineHeight:1.6 }}>
+            <div style={{ marginTop: 10, background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.2)', borderRadius: 8, padding: '9px 14px', fontSize: 12, color: '#b0b0c8', lineHeight: 1.6 }}>
               💡 {r.insight}
             </div>
           )}
 
           {/* Error box */}
           {r.type === 'error' && (
-            <div style={{ marginTop:10, background:'rgba(231,76,60,0.1)', border:'1px solid rgba(231,76,60,0.3)', borderRadius:8, padding:'9px 14px', fontFamily:"'Space Mono',monospace", fontSize:11, color:'#e74c3c' }}>
+            <div style={{ marginTop: 10, background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 8, padding: '9px 14px', fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#e74c3c' }}>
               {r.error || 'An error occurred'}
             </div>
           )}
 
           {/* Charts */}
-          {(r.type === 'bar' || r.chart_type === 'bar') && r.chart_data?.length > 0 && <ResultBar data={r.chart_data}/>}
-          {(r.type === 'line' || r.chart_type === 'line') && r.chart_data?.length > 0 && <ResultLine data={r.chart_data}/>}
-          {(r.type === 'number' || r.chart_type === 'number') && r.rows?.length > 0 && <ResultNumber rows={r.rows} columns={r.columns}/>}
+          {(r.type === 'bar' || r.chart_type === 'bar') && r.chart_data?.length > 0 && <ResultBar data={r.chart_data} />}
+          {(r.type === 'line' || r.chart_type === 'line') && r.chart_data?.length > 0 && <ResultLine data={r.chart_data} />}
+          {(r.type === 'number' || r.chart_type === 'number') && r.rows?.length > 0 && <ResultNumber rows={r.rows} columns={r.columns} />}
 
           {/* Table */}
           {r.type === 'table' && r.rows?.length > 0 && r.columns?.length > 0 && (
-            <ResultTable columns={r.columns} rows={r.rows}/>
+            <ResultTable columns={r.columns} rows={r.rows} />
           )}
 
           {/* Row count */}
           {r.row_count != null && r.type !== 'number' && (
-            <div style={{ marginTop:10, fontFamily:"'Space Mono',monospace", fontSize:10, color:'#444458' }}>
+            <div style={{ marginTop: 10, fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#444458' }}>
               {r.row_count.toLocaleString()} row{r.row_count !== 1 ? 's' : ''} returned
             </div>
           )}
 
           {/* SQL block (collapsible) */}
-          {r.sql && <SqlBlock sql={r.sql}/>}
+          {r.sql && <SqlBlock sql={r.sql} />}
         </div>
-        <div style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:'#333348', marginTop:6, paddingLeft:4 }}>{time}</div>
+        <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#333348', marginTop: 6, paddingLeft: 4 }}>{time}</div>
       </div>
     </div>
   )
 }
 
-const now = () => new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })
+const now = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
 
 // ── Health banner ──────────────────────────────────────────────────────────
 function HealthBanner({ health }) {
@@ -240,18 +240,18 @@ function HealthBanner({ health }) {
   if (health.ready) return null  // all good, show nothing
 
   const issues = []
-  if (!health.db)           issues.push('Database not loaded (run load_data.py)')
+  if (!health.db) issues.push('Database not loaded (run load_data.py)')
   if (!health.anthropic_api) issues.push('ANTHROPIC_API_KEY not set in .env')
 
   return (
-    <div style={{ background:'rgba(243,156,18,0.1)', border:'1px solid rgba(243,156,18,0.3)', borderRadius:10, padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'flex-start', gap:12 }}>
-      <span style={{ fontSize:16 }}>⚠️</span>
+    <div style={{ background: 'rgba(243,156,18,0.1)', border: '1px solid rgba(243,156,18,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <span style={{ fontSize: 16 }}>⚠️</span>
       <div>
-        <div style={{ fontFamily:"'Space Mono',monospace", fontSize:12, color:'#f39c12', fontWeight:700, marginBottom:4 }}>Backend not fully ready</div>
+        <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, fontWeight: 700, color: '#f39c12', marginBottom: 4 }}>Backend not fully ready</div>
         {issues.map((issue, i) => (
-          <div key={i} style={{ fontSize:12, color:'#b0b0c8', lineHeight:1.6 }}>• {issue}</div>
+          <div key={i} style={{ fontSize: 12, color: '#b0b0c8', lineHeight: 1.6 }}>• {issue}</div>
         ))}
-        <div style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:'#666680', marginTop:6 }}>
+        <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#666680', marginTop: 6 }}>
           See README.md for setup instructions
         </div>
       </div>
@@ -261,25 +261,30 @@ function HealthBanner({ health }) {
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 export default function QueryBotPage() {
-  const [messages, setMessages] = useState([{
-    id: 0, role: 'assistant', time: now(),
-    response: {
-      type: 'help',
-      text: "👋 Hi! I'm **QueryBot** — connected to the real Olist database.\n\nAsk me anything in plain English and I'll write the SQL, run it, and explain the results.",
-    }
-  }])
-  const [input, setInput]     = useState('')
-  const [typing, setTyping]   = useState(false)
-  const [health, setHealth]   = useState(null)
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem('schemaiq_chat_history')
+    return saved ? JSON.parse(saved) : [{
+      id: 0, role: 'assistant', time: now(),
+      response: {
+        type: 'help',
+        text: "👋 Hi! I'm **QueryBot** — connected to the real Olist database.\n\nAsk me anything in plain English and I'll write the SQL, run it, and explain the results.",
+      }
+    }]
+  })
+  const [input, setInput] = useState('')
+  const [typing, setTyping] = useState(false)
+  const [health, setHealth] = useState(null)
   const bottomRef = useRef(null)
-  const inputRef  = useRef(null)
+  const inputRef = useRef(null)
 
   // Check backend health on mount
   useEffect(() => {
     checkHealth().then(setHealth)
   }, [])
 
+  // Persist messages to localStorage
   useEffect(() => {
+    localStorage.setItem('schemaiq_chat_history', JSON.stringify(messages))
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, typing])
 
@@ -300,49 +305,49 @@ export default function QueryBotPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input) }
   }
 
-  const clear = () => setMessages([{
-    id: 0, role: 'assistant', time: now(),
-    response: { type: 'text', text: '🔄 Chat cleared. Ask me anything about the Olist database.' }
-  }])
+  const clear = () => {
+    localStorage.removeItem('schemaiq_chat_history')
+    setMessages([{
+      id: 0, role: 'assistant', time: now(),
+      response: { type: 'text', text: '🔄 Chat cleared. Ask me anything about the connected database.' }
+    }])
+  }
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'calc(100vh - 64px - 64px)', maxHeight:900 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px - 64px)', maxHeight: 900 }}>
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <h1 style={{ fontFamily:"'Space Mono',monospace", fontSize:22, fontWeight:700, color:'#e8e8f0', margin:0, display:'flex', alignItems:'center', gap:12 }}>
+          <h1 style={{ fontFamily: "'Space Mono',monospace", fontSize: 22, fontWeight: 700, color: '#e8e8f0', margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
             💬 QueryBot
-            <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, background: health?.ready ? 'rgba(39,174,96,0.15)' : 'rgba(243,156,18,0.15)', color: health?.ready ? '#27ae60' : '#f39c12', border:`1px solid ${health?.ready ? 'rgba(39,174,96,0.3)' : 'rgba(243,156,18,0.3)'}`, padding:'3px 10px', borderRadius:20 }}>
+            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, background: health?.ready ? 'rgba(39,174,96,0.15)' : 'rgba(243,156,18,0.15)', color: health?.ready ? '#27ae60' : '#f39c12', border: `1px solid ${health?.ready ? 'rgba(39,174,96,0.3)' : 'rgba(243,156,18,0.3)'}`, padding: '3px 10px', borderRadius: 20 }}>
               {health?.ready ? '● LIVE' : health === null ? '◌ Checking…' : '⚠ Setup needed'}
             </span>
           </h1>
-          <p style={{ fontSize:13, color:'#666680', marginTop:6 }}>
-            Natural language → SQL → Real Olist data · Claude {health?.ready ? 'connected' : 'powered'}
-          </p>
         </div>
-        <button onClick={clear} style={{ background:'#16161f', border:'1px solid #1e1e2e', borderRadius:8, padding:'8px 16px', fontFamily:"'Space Mono',monospace", fontSize:11, color:'#b0b0c8', cursor:'pointer' }}>🗑 Clear</button>
+        <button onClick={clear} style={{ background: '#16161f', border: '1px solid #1e1e2e', borderRadius: 8, padding: '8px 16px', fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#b0b0c8', cursor: 'pointer' }}>🗑 Clear</button>
       </div>
 
-      <HealthBanner health={health}/>
+      <HealthBanner health={health} />
 
-      <div style={{ display:'flex', gap:16, flex:1, minHeight:0 }}>
+      <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
         {/* Chat area */}
-        <Panel style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
+        <Panel style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {/* Messages */}
-          <div style={{ flex:1, overflowY:'auto', padding:'24px 24px 8px', display:'flex', flexDirection:'column', gap:20 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '24px 24px 8px', display: 'flex', flexDirection: 'column', gap: 20 }}>
             {messages.map(msg => (
               msg.role === 'user'
-                ? <UserBubble key={msg.id} text={msg.text}/>
-                : <AssistantBubble key={msg.id} response={msg.response} time={msg.time}/>
+                ? <UserBubble key={msg.id} text={msg.text} />
+                : <AssistantBubble key={msg.id} response={msg.response} time={msg.time} />
             ))}
-            {typing && <TypingIndicator/>}
-            <div ref={bottomRef}/>
+            {typing && <TypingIndicator />}
+            <div ref={bottomRef} />
           </div>
 
           {/* Input */}
-          <div style={{ borderTop:'1px solid #1e1e2e', padding:'16px 20px' }}>
-            <div style={{ display:'flex', gap:12, alignItems:'flex-end' }}>
-              <div style={{ flex:1, background:'#16161f', border:'1px solid #1e1e2e', borderRadius:14, padding:'12px 18px', transition:'border-color 0.2s' }}
+          <div style={{ borderTop: '1px solid #1e1e2e', padding: '16px 20px' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+              <div style={{ flex: 1, background: '#16161f', border: '1px solid #1e1e2e', borderRadius: 14, padding: '12px 18px', transition: 'border-color 0.2s' }}
                 onFocus={e => e.currentTarget.style.borderColor = '#c0392b'}
                 onBlur={e => e.currentTarget.style.borderColor = '#1e1e2e'}
               >
@@ -354,38 +359,58 @@ export default function QueryBotPage() {
                   placeholder="Ask anything… e.g. 'Top 5 categories by revenue in 2018'"
                   rows={1}
                   disabled={typing}
-                  style={{ width:'100%', background:'transparent', border:'none', outline:'none', fontSize:14, color:'#e8e8f0', fontFamily:"'DM Sans',sans-serif", resize:'none', lineHeight:1.6, maxHeight:120 }}
+                  style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: '#e8e8f0', fontFamily: "'DM Sans',sans-serif", resize: 'none', lineHeight: 1.6, maxHeight: 120 }}
                 />
               </div>
               <button
                 onClick={() => send(input)}
                 disabled={!input.trim() || typing}
-                style={{ width:44, height:44, background: input.trim() && !typing ? '#c0392b' : '#16161f', border:'none', borderRadius:12, color:'#fff', fontSize:18, cursor: input.trim() && !typing ? 'pointer' : 'not-allowed', opacity: input.trim() && !typing ? 1 : 0.4, transition:'all 0.15s', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}
+                style={{ width: 44, height: 44, background: input.trim() && !typing ? '#c0392b' : '#16161f', border: 'none', borderRadius: 12, color: '#fff', fontSize: 18, cursor: input.trim() && !typing ? 'pointer' : 'not-allowed', opacity: input.trim() && !typing ? 1 : 0.4, transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >↑</button>
             </div>
-            <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, paddingLeft:4 }}>
-              <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:'#333348' }}>Enter to send · Shift+Enter for new line</span>
-              <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:'#333348' }}>Real Olist DB · Claude API</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingLeft: 4 }}>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#333348' }}>Enter to send · Shift+Enter for new line</span>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#333348' }}>Real Olist DB · Claude API</span>
             </div>
           </div>
         </Panel>
 
         {/* Sidebar */}
-        <div style={{ width:250, display:'flex', flexDirection:'column', gap:12, overflowY:'auto' }}>
+        <div
+          id="querybot-sidebar"
+          style={{
+            width: 250,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            overflowY: 'auto',
+            paddingRight: '6px',
+            maxHeight: '100%',
+            flexShrink: 0
+          }}
+          className="custom-scrollbar"
+        >
           {/* Suggestions */}
           <Panel>
-            <div style={{ padding:'16px 18px', borderBottom:'1px solid #1e1e2e' }}>
-              <div style={{ fontFamily:"'Space Mono',monospace", fontSize:12, fontWeight:700, color:'#e8e8f0' }}>💡 Try These</div>
-              <div style={{ fontSize:11, color:'#666680', marginTop:3 }}>Real queries on live data</div>
+            <div style={{ padding: '16px 18px', borderBottom: '1px solid #1e1e2e' }}>
+              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, fontWeight: 700, color: '#e8e8f0' }}>💡 Try These</div>
+              <div style={{ fontSize: 11, color: '#666680', marginTop: 3 }}>Real queries on live data</div>
             </div>
-            <div style={{ padding:'10px', display:'flex', flexDirection:'column', gap:5 }}>
+            <div style={{
+              padding: '10px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 5,
+              maxHeight: 280,
+              overflowY: 'auto'
+            }} className="custom-scrollbar">
               {SUGGESTIONS.map((s, i) => (
                 <button key={i} onClick={() => send(s)} disabled={typing}
-                  style={{ width:'100%', textAlign:'left', background:'#16161f', border:'1px solid #1e1e2e', borderRadius:9, padding:'10px 13px', cursor: typing ? 'not-allowed' : 'pointer', transition:'all 0.15s', opacity: typing ? 0.5 : 1 }}
-                  onMouseEnter={e => { if (!typing) { e.currentTarget.style.borderColor='#c0392b'; e.currentTarget.style.background='rgba(192,57,43,0.05)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor='#1e1e2e'; e.currentTarget.style.background='#16161f' }}
+                  style={{ width: '100%', textAlign: 'left', background: '#16161f', border: '1px solid #1e1e2e', borderRadius: 9, padding: '10px 13px', cursor: typing ? 'not-allowed' : 'pointer', transition: 'all 0.15s', opacity: typing ? 0.5 : 1 }}
+                  onMouseEnter={e => { if (!typing) { e.currentTarget.style.borderColor = '#c0392b'; e.currentTarget.style.background = 'rgba(192,57,43,0.05)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e1e2e'; e.currentTarget.style.background = '#16161f' }}
                 >
-                  <p style={{ fontSize:11, color:'#b0b0c8', lineHeight:1.5, margin:0 }}>{s}</p>
+                  <p style={{ fontSize: 11, color: '#b0b0c8', lineHeight: 1.5, margin: 0 }}>{s}</p>
                 </button>
               ))}
             </div>
@@ -393,24 +418,24 @@ export default function QueryBotPage() {
 
           {/* Backend status */}
           <Panel>
-            <div style={{ padding:'16px 18px', borderBottom:'1px solid #1e1e2e' }}>
-              <div style={{ fontFamily:"'Space Mono',monospace", fontSize:12, fontWeight:700, color:'#e8e8f0' }}>⚡ Backend Status</div>
+            <div style={{ padding: '16px 18px', borderBottom: '1px solid #1e1e2e' }}>
+              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, fontWeight: 700, color: '#e8e8f0' }}>⚡ Backend Status</div>
             </div>
-            <div style={{ padding:'14px 18px', display:'flex', flexDirection:'column', gap:10 }}>
+            <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
-                { label:'Olist SQLite DB',    ok: health?.db },
-                { label:'Anthropic API Key',  ok: health?.anthropic_api },
-                { label:'FastAPI Server',     ok: health !== null },
+                { label: 'Olist SQLite DB', ok: health?.db },
+                { label: 'Anthropic API Key', ok: health?.anthropic_api },
+                { label: 'FastAPI Server', ok: health !== null },
               ].map(item => (
-                <div key={item.label} style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                  <span style={{ fontSize:12, color:'#b0b0c8' }}>{item.label}</span>
-                  <span style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color: item.ok ? '#27ae60' : health === null ? '#f39c12' : '#e74c3c' }}>
+                <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12, color: '#b0b0c8' }}>{item.label}</span>
+                  <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: item.ok ? '#27ae60' : health === null ? '#f39c12' : '#e74c3c' }}>
                     {item.ok ? '✓ Ready' : health === null ? '…' : '✗ Missing'}
                   </span>
                 </div>
               ))}
               <button onClick={() => checkHealth().then(setHealth)}
-                style={{ marginTop:4, background:'none', border:'1px solid #1e1e2e', borderRadius:7, padding:'6px 12px', fontFamily:"'Space Mono',monospace", fontSize:10, color:'#666680', cursor:'pointer' }}>
+                style={{ marginTop: 4, background: 'none', border: '1px solid #1e1e2e', borderRadius: 7, padding: '6px 12px', fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#666680', cursor: 'pointer' }}>
                 ⟳ Refresh
               </button>
             </div>
@@ -418,16 +443,16 @@ export default function QueryBotPage() {
 
           {/* Query tips */}
           <Panel>
-            <div style={{ padding:'14px 18px' }}>
-              <div style={{ fontFamily:"'Space Mono',monospace", fontSize:11, color:'#666680', marginBottom:10 }}>🔍 Query Tips</div>
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <div style={{ padding: '14px 18px' }}>
+              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#666680', marginBottom: 10 }}>🔍 Query Tips</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
                   'Ask in plain English — no SQL needed',
                   'Include dates like "in 2018" or "between Jan–Mar 2018"',
                   'Ask for "top 10", "average", "total", "count"',
                   'Reference any table: orders, products, sellers, reviews',
                 ].map((tip, i) => (
-                  <div key={i} style={{ fontSize:11, color:'#666680', lineHeight:1.5 }}>• {tip}</div>
+                  <div key={i} style={{ fontSize: 11, color: '#666680', lineHeight: 1.5 }}>• {tip}</div>
                 ))}
               </div>
             </div>

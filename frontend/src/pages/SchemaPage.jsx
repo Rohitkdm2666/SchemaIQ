@@ -42,31 +42,53 @@ export default function SchemaPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Fetch schema structure
     fetch('http://localhost:8001/api/schema?infer=true')
       .then(r => r.json())
-      .then(data => {
-        const tData = {};
-        if (data.tables) {
-          data.tables.forEach(t => {
-            tData[t.name] = {
-              rows: 'N/A', cols: t.columns.length, pk: t.primary_key ? t.primary_key[0] : null,
-              fks: t.foreign_keys ? t.foreign_keys.map(fk => `${fk.column} → ${fk.references.table}`) : [],
-              summary: 'Loaded dynamically from Schema Intelligence Engine.',
-              columns: t.columns.map(c => {
-                const tags = [];
-                if (t.primary_key && t.primary_key.includes(c.name)) tags.push('PK');
-                if (t.foreign_keys && t.foreign_keys.some(f => f.column === c.name)) tags.push('FK');
-                return {
-                  name: c.name, type: c.type, tags, nullPct: 'N/A', distinct: 'N/A', desc: ''
+      .then(schemaData => {
+        setGraphData(schemaToGraph(schemaData));
+        
+        // Fetch AI dictionary data for row counts and enhanced info
+        return fetch('http://localhost:8001/api/dictionary/quick')
+          .then(r => r.json())
+          .then(dictData => {
+            const tData = {};
+            
+            if (schemaData.tables) {
+              schemaData.tables.forEach(t => {
+                // Find matching table in dictionary data for row count
+                const dictTable = dictData.tables?.find(dt => dt.name === t.name);
+                
+                tData[t.name] = {
+                  rows: dictTable ? dictTable.row_count.toLocaleString() : 'N/A', 
+                  cols: t.columns.length, 
+                  pk: t.primary_key ? t.primary_key[0] : null,
+                  fks: t.foreign_keys ? t.foreign_keys.map(fk => `${fk.column} → ${fk.references.table}`) : [],
+                  summary: dictTable ? dictTable.business_purpose || dictTable.description : 'Loaded dynamically from Schema Intelligence Engine.',
+                  columns: t.columns.map(c => {
+                    const tags = [];
+                    if (t.primary_key && t.primary_key.includes(c.name)) tags.push('PK');
+                    if (t.foreign_keys && t.foreign_keys.some(f => f.column === c.name)) tags.push('FK');
+                    
+                    // Find matching column in dictionary data
+                    const dictCol = dictTable?.columns?.find(dc => dc.name === c.name);
+                    
+                    return {
+                      name: c.name, 
+                      type: c.type, 
+                      tags, 
+                      nullPct: dictCol ? `${(dictCol.null_percentage || 0).toFixed(1)}%` : 'N/A', 
+                      distinct: dictCol ? (dictCol.unique_count || 'N/A') : 'N/A', 
+                      desc: dictCol ? (dictCol.description || dictCol.business_context || '') : ''
+                    };
+                  })
                 };
-              })
-            };
+              });
+              setSchemaTables(tData);
+              if (schemaData.tables.length > 0) setActiveTable(schemaData.tables[0].name);
+            }
+            setLoading(false);
           });
-          setSchemaTables(tData);
-          if (data.tables.length > 0) setActiveTable(data.tables[0].name);
-        }
-        setGraphData(schemaToGraph(data));
-        setLoading(false);
       })
       .catch(err => {
         console.error(err);

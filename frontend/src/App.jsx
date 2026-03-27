@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import QueryBotPage from './pages/QueryBotPage.jsx'
 import SchemaPage from './pages/SchemaPage.jsx'
+import InsightsPage from './pages/InsightsPage.jsx'
 import {
   ERDiagramPage,
   DictionaryPage,
@@ -39,6 +40,7 @@ function AppRoutes() {
       <Route path="/quality" element={<ProtectedRoute><QualityPage /></ProtectedRoute>} />
       <Route path="/agents" element={<ProtectedRoute><AgentsPage /></ProtectedRoute>} />
       <Route path="/querybot" element={<ProtectedRoute><QueryBotPage /></ProtectedRoute>} />
+      <Route path="/insights" element={<ProtectedRoute><InsightsPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

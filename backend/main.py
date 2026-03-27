@@ -1,7 +1,7 @@
 """
 SchemaIQ QueryBot Backend
 FastAPI + SQLAlchemy + Gemini API (Text-to-SQL)
-Supports dynamically connecting to SQLite, MySQL, PostgreSQL, MSSQL, or CSVs.
+Supports dynamically connecting to various database dialects or local files.
 """
 
 import os
@@ -27,6 +27,8 @@ from routes.upload import router as upload_router
 from routes.schema import router as schema_router
 from routes.twif import router as twif_router
 from routes.dictionary import router as dictionary_router
+from routes.insights import router as insights_router
+from routes.settings import router as settings_router
 
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -35,6 +37,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
+from db.connection import get_engine as get_active_engine, db_state
 
 load_dotenv()
 
@@ -51,12 +54,18 @@ def get_client():
     return genai.GenerativeModel(MODEL)
 
 # ── Database Engine ───────────────────────────────────────────────────────────
-DEFAULT_DB_PATH = Path(__file__).parent / "olist.db"
-DB_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")
+FALLBACK_DB_PATH = Path(__file__).parent / "olist.db"
+# Only use fallback if explicitly requested or if no other URL is found.
+# Actually, to make it truly dynamic, we start with None if DATABASE_URL isn't set.
+DB_URL = os.environ.get("DATABASE_URL", None)
 
 engine = None
 def initialize_engine():
     global engine
+    if not DB_URL:
+        print("No DATABASE_URL found. Starting in disconnected mode.")
+        return
+
     try:
         if DB_URL.endswith(".csv"):
             engine = create_engine("sqlite:///:memory:")
@@ -65,16 +74,20 @@ def initialize_engine():
             df.to_sql(tname, engine, index=False)
         else:
             engine = create_engine(DB_URL)
+        
+        db_state.engine = engine
+        db_state.db_url = DB_URL
     except Exception as e:
         print(f"Failed to connect to database at {DB_URL}: {e}")
 
 initialize_engine()
 
 def check_db():
-    if engine is None:
+    current_engine = db_state.engine
+    if current_engine is None:
         raise HTTPException(status_code=503, detail="Database engine not initialized. Check DATABASE_URL.")
     try:
-        with engine.connect() as conn:
+        with current_engine.connect() as conn:
             pass
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {e}")
@@ -102,53 +115,57 @@ app.include_router(profile_router, prefix="/api")
 app.include_router(preview_router, prefix="/api")
 app.include_router(twif_router, prefix="/api")
 app.include_router(dictionary_router, prefix="/api")
+app.include_router(insights_router, prefix="/api")
+app.include_router(settings_router, prefix="/api")
 
 # ── Dynamic Schema Extraction ─────────────────────────────────────────────────
 CACHED_PROMPT = None
+CACHED_PROMPT_DB_URL = None
 
 def generate_dynamic_schema_prompt():
-    global CACHED_PROMPT
-    if CACHED_PROMPT:
+    global CACHED_PROMPT, CACHED_PROMPT_DB_URL
+    current_db_url = db_state.db_url
+    if CACHED_PROMPT and CACHED_PROMPT_DB_URL == current_db_url:
         return CACHED_PROMPT
 
     check_db()
-    insp = inspect(engine)
+    current_engine = get_active_engine()
+    insp = inspect(current_engine)
     tables = insp.get_table_names()
+    dialect = getattr(current_engine, "name", "unknown")
     
     prompt_lines = [
         "You are a SQL expert AI working with a relational database.",
+        f"SQL DIALECT: {dialect}",
         "Generate a valid SQL query based on the following dynamic database schema:\n",
         "DATABASE SCHEMA:",
         "---------------"
     ]
     
-    with engine.connect() as conn:
-        for tname in tables:
-            try:
-                cnt = conn.execute(text(f'SELECT COUNT(*) FROM "{tname}"')).scalar()
-            except:
-                cnt = "Unknown"
-            prompt_lines.append(f"\n{tname} ({cnt} rows)")
-            
-            pks = insp.get_pk_constraint(tname).get("constrained_columns", [])
-            fks = insp.get_foreign_keys(tname)
-            fk_map = {fk["constrained_columns"][0]: f'{fk["referred_table"]}.{fk["referred_columns"][0]}' for fk in fks if fk["constrained_columns"]}
-            
-            columns = insp.get_columns(tname)
-            for c in columns:
-                cname = c["name"]
-                ctype = str(c["type"])
-                tags = []
-                if cname in pks: tags.append("PRIMARY KEY")
-                if cname in fk_map: tags.append(f"FK→{fk_map[cname]}")
-                tag_str = " ".join(tags)
-                prompt_lines.append(f"  - {cname:<24} {ctype:<10} {tag_str}")
+    for tname in tables:
+        prompt_lines.append(f"\n{tname}")
+        
+        pks = insp.get_pk_constraint(tname).get("constrained_columns", [])
+        fks = insp.get_foreign_keys(tname)
+        fk_map = {fk["constrained_columns"][0]: f'{fk["referred_table"]}.{fk["referred_columns"][0]}' for fk in fks if fk["constrained_columns"]}
+        
+        columns = insp.get_columns(tname)
+        for c in columns:
+            cname = c["name"]
+            ctype = str(c["type"])
+            tags = []
+            if cname in pks: tags.append("PRIMARY KEY")
+            if cname in fk_map: tags.append(f"FK→{fk_map[cname]}")
+            tag_str = " ".join(tags)
+            prompt_lines.append(f"  - {cname:<24} {ctype:<10} {tag_str}")
 
     prompt_lines.append("\nIMPORTANT RULES:")
     prompt_lines.append("- Output ONLY a valid JSON object")
+    prompt_lines.append(f"- Use SQL syntax compatible with {dialect}")
     prompt_lines.append("- LIMIT results to 20 rows unless explicitly requested")
     
     CACHED_PROMPT = "\n".join(prompt_lines)
+    CACHED_PROMPT_DB_URL = current_db_url
     return CACHED_PROMPT
 
 def get_sql_system_prompt():
@@ -190,7 +207,8 @@ def clean_json(raw: str) -> str:
 # ── DB Execution ─────────────────────────────────────────────────────────────
 def run_query(sql_query: str):
     try:
-        with engine.connect() as conn:
+        current_engine = get_active_engine()
+        with current_engine.connect() as conn:
             result = conn.execute(text(sql_query))
             if result.returns_rows:
                 columns = list(result.keys())
@@ -248,13 +266,27 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"db_connected": engine is not None, "api_key_set": bool(API_KEY)}
+    db_ok = db_state.engine is not None
+    api_ok = bool(API_KEY)
+    return {
+        "db_connected": db_ok,
+        "api_key_set": api_ok,
+        "db": db_ok,
+        "anthropic_api": api_ok,
+        "ready": db_ok and api_ok,
+    }
+
+CHAT_CACHE = {}
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     check_db()
     question = req.question.strip()
     if not question: raise HTTPException(status_code=400, detail="Empty question")
+
+    # Check cache
+    if question in CHAT_CACHE:
+        return CHAT_CACHE[question]
 
     t0 = time.time()
     sql_query = None
@@ -283,11 +315,16 @@ def chat(req: ChatRequest):
 
         chart_data = build_chart_data(columns, rows, chart_type)
         monitor.record_query(question, sql_query, True, (time.time()-t0)*1000)
-        return ChatResponse(
+        
+        response = ChatResponse(
             text=text, insight=insight, sql=sql_query,
             chart_type=chart_type, chart_data=chart_data,
             columns=columns, rows=rows[:100], row_count=len(rows)
         )
+        
+        # Cache successful response
+        CHAT_CACHE[question] = response
+        return response
     except Exception as e:
         traceback.print_exc()
         monitor.record_query(question, sql_query, False, (time.time()-t0)*1000, str(e))

@@ -12,6 +12,8 @@ from sqlalchemy.exc import DBAPIError, OperationalError, SQLAlchemyError
 class DBState:
     db_url: Optional[str] = None
     engine: Optional[Engine] = None
+    source: Optional[str] = None # 'database' or 'file'
+    display_name: Optional[str] = None
 
 
 db_state = DBState()
@@ -27,7 +29,7 @@ def test_connection(engine: Engine) -> None:
         raise RuntimeError(f"Database connection test failed: {e}")
 
 
-def set_db_url(db_url: str, *, validate: bool = False) -> Engine:
+def set_db_url(db_url: str, *, validate: bool = False, source: str = 'database', display_name: Optional[str] = None) -> Engine:
     try:
         engine = create_engine(db_url)
     except ModuleNotFoundError as e:
@@ -40,6 +42,8 @@ def set_db_url(db_url: str, *, validate: bool = False) -> Engine:
 
     db_state.db_url = db_url
     db_state.engine = engine
+    db_state.source = source
+    db_state.display_name = display_name
     return engine
 
 

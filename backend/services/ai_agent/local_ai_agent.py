@@ -31,6 +31,7 @@ class SchemaIQLocalAI:
         self.domain_classifier = UniversalDomainClassifier()
         self.context_generator = IntelligentContextGenerator()
         self.data_profiler = IntelligentDataProfiler()
+        self._current_engine = None  # Store current engine for row counting
         
     def generate_intelligent_dictionary(self, engine: Engine, 
                                       include_profiling: bool = True,
@@ -39,7 +40,10 @@ class SchemaIQLocalAI:
         Generate comprehensive intelligent data dictionary
         """
         try:
-            # Step 1: Extract basic schema
+            # Store engine for row counting
+            self._current_engine = engine
+            
+            # Step 1: Extract and structure schema
             raw_schema = inspect_database(engine)
             structured_schema = extract_schema(raw_schema)
             
@@ -49,10 +53,21 @@ class SchemaIQLocalAI:
             
             # Step 3: Infer additional relationships
             inferred_rels = infer_relationships(schema_with_fks)
-            all_relationships = relationships + inferred_rels.get('relationships', [])
+            # Fix: inferred_rels returns a dict, not a list
+            if isinstance(inferred_rels, dict):
+                all_relationships = relationships + inferred_rels.get('relationships', [])
+            else:
+                # If inferred_rels is already a list of relationships
+                all_relationships = relationships + (inferred_rels if isinstance(inferred_rels, list) else [])
             
             # Step 4: Domain classification
             tables_list = structured_schema.get('tables', [])
+            
+            # Debug: Check if tables_list is actually a list
+            if not isinstance(tables_list, list):
+                print(f"ERROR: tables_list is not a list, it's {type(tables_list)}: {tables_list}")
+                return self._build_error_response(f"Invalid schema structure: tables is {type(tables_list)}")
+            
             domain_analysis = self.domain_classifier.classify_schema(tables_list, all_relationships)
             
             # Step 5: Data profiling (if enabled)
@@ -144,8 +159,28 @@ class SchemaIQLocalAI:
             )
             
         except Exception as e:
-            # Return minimal response on error
+            print(f"DEBUG: Exception in generate_intelligent_dictionary: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return self._build_error_response(str(e))
+    
+    def _get_table_row_count(self, table_name: str) -> int:
+        """
+        Get actual row count for a table
+        """
+        if not self._current_engine:
+            return 0
+            
+        try:
+            with self._current_engine.connect() as connection:
+                # Use proper SQL escaping for table name
+                from sqlalchemy import text
+                result = connection.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+                row_count = result.scalar()
+                return row_count if row_count is not None else 0
+        except Exception as e:
+            print(f"Warning: Could not get row count for table '{table_name}': {e}")
+            return 0
     
     def _extract_sample_data_from_profiles(self, table_profiles: Dict) -> Dict[str, Dict]:
         """
@@ -249,8 +284,8 @@ class SchemaIQLocalAI:
         """
         table_name = table.get('name', '')
         
-        # Basic info
-        row_count = 0
+        # Basic info - get actual row count from database
+        row_count = self._get_table_row_count(table_name)
         column_count = len(columns)
         
         # AI context
@@ -310,7 +345,7 @@ class SchemaIQLocalAI:
         domain_context = self.domain_classifier.get_domain_context(domain_analysis.primary_domain)
         
         secondary_domains = [
-            {"domain": domain, "confidence": confidence}
+            {domain: confidence}
             for domain, confidence in domain_analysis.secondary_domains
         ]
         

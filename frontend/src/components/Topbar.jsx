@@ -43,12 +43,6 @@ export default function Topbar() {
       </div>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
-        {/* DB badge */}
-        <div style={{
-          background: '#c0392b', color: '#fff',
-          fontFamily: "'Space Mono', monospace", fontSize: 10,
-          padding: '5px 10px', borderRadius: 6, letterSpacing: '0.06em',
-        }}>OLIST DB</div>
 
         {/* QueryBot shortcut */}
         <button

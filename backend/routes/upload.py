@@ -28,7 +28,7 @@ async def upload(file: UploadFile):
         else:
             loaded = load_file(str(dest), sqlite_out_path=str(UPLOAD_DIR / f"{dest.stem}.sqlite"), append=False)
 
-        set_db_url(loaded["db_url"])
+        set_db_url(loaded["db_url"], source='file', display_name=file.filename)
 
         return {
             "status": "uploaded",

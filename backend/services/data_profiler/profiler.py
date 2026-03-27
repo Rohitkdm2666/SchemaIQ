@@ -17,6 +17,13 @@ def _scalar(conn, sql: str, params: Optional[Dict[str, Any]] = None) -> Any:
     return res.scalar()
 
 
+def _safe_scalar(conn, sql: str, params: Optional[Dict[str, Any]] = None, default: Any = None) -> Any:
+    try:
+        return _scalar(conn, sql, params)
+    except Exception:
+        return default
+
+
 def profile_database(
     engine: Engine,
     schema_payload: Dict[str, Any],
@@ -44,7 +51,8 @@ def profile_database(
                 continue
 
             table_ident = _qident(tname)
-            row_count = int(_scalar(conn, f"SELECT COUNT(*) FROM {table_ident}"))
+            row_count_raw = _safe_scalar(conn, f"SELECT COUNT(*) FROM {table_ident}", default=0)
+            row_count = int(row_count_raw or 0)
 
             col_stats: List[Dict[str, Any]] = []
             freshness: Optional[Dict[str, Any]] = None
@@ -55,20 +63,22 @@ def profile_database(
                     continue
 
                 col_ident = _qident(cname)
-                null_count = int(
-                    _scalar(
-                        conn,
-                        f"SELECT SUM(CASE WHEN {col_ident} IS NULL THEN 1 ELSE 0 END) FROM {table_ident}",
-                    )
-                    or 0
+                null_count_raw = _safe_scalar(
+                    conn,
+                    f"SELECT SUM(CASE WHEN {col_ident} IS NULL THEN 1 ELSE 0 END) FROM {table_ident}",
+                    default=0,
                 )
+                null_count = int(null_count_raw or 0)
                 null_percent = (null_count / row_count * 100.0) if row_count else 0.0
 
                 distinct_count: Optional[int] = None
                 if compute_distinct:
-                    distinct_count = int(
-                        _scalar(conn, f"SELECT COUNT(DISTINCT {col_ident}) FROM {table_ident}") or 0
+                    distinct_count_raw = _safe_scalar(
+                        conn,
+                        f"SELECT COUNT(DISTINCT {col_ident}) FROM {table_ident}",
+                        default=0,
                     )
+                    distinct_count = int(distinct_count_raw or 0)
 
                 col_stats.append(
                     {
@@ -84,7 +94,7 @@ def profile_database(
                     ctype == "datetime"
                     or any(h in cname.lower() for h in freshness_column_hints)
                 ):
-                    max_val = _scalar(conn, f"SELECT MAX({col_ident}) FROM {table_ident}")
+                    max_val = _safe_scalar(conn, f"SELECT MAX({col_ident}) FROM {table_ident}")
                     if max_val is not None:
                         max_str = str(max_val)
                         age_days: Optional[float] = None
@@ -132,7 +142,8 @@ def profile_database(
                     f"LEFT JOIN {tt} ON {ft}.{fc} = {tt}.{tc} "
                     f"WHERE {ft}.{fc} IS NOT NULL AND {tt}.{tc} IS NULL"
                 )
-                orphan_count = int(_scalar(conn, sql) or 0)
+                orphan_count_raw = _safe_scalar(conn, sql, default=0)
+                orphan_count = int(orphan_count_raw or 0)
                 fk_orphans.append(
                     {
                         "from_table": from_table,

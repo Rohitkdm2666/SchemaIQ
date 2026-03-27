@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, DEMO_CREDENTIALS } from '../context/AuthContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 
 const S = {
   page: {
@@ -117,63 +117,6 @@ const S = {
     marginTop: 8,
   },
   submitDisabled: { opacity: 0.5, cursor: 'not-allowed' },
-  credsWrap: {
-    borderTop: '1px solid #1e1e2e',
-    background: '#0d0d14',
-    padding: '20px 32px 24px',
-  },
-  credsTitle: {
-    fontFamily: "'Space Mono', monospace",
-    fontSize: 10, color: '#666680',
-    textTransform: 'uppercase', letterSpacing: '0.1em',
-    marginBottom: 12,
-  },
-  credBtn: {
-    width: '100%', background: '#16161f',
-    borderWidth: 1, borderStyle: 'solid', borderColor: '#1e1e2e', borderRadius: 10,
-    padding: '11px 14px', cursor: 'pointer',
-    display: 'flex', alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8, transition: 'all 0.15s',
-    textAlign: 'left',
-  },
-  credAvatar: {
-    width: 28, height: 28, borderRadius: '50%',
-    background: 'linear-gradient(135deg, #c0392b, #f0828a)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: "'Space Mono', monospace",
-    fontSize: 9, fontWeight: 700, color: '#fff',
-    flexShrink: 0,
-  },
-  credName: {
-    fontFamily: "'Space Mono', monospace",
-    fontSize: 12, fontWeight: 700, color: '#e8e8f0',
-  },
-  credRole: {
-    fontFamily: "'Space Mono', monospace",
-    fontSize: 9, color: '#666680',
-    background: '#0a0a0f', padding: '2px 6px',
-    borderRadius: 4, marginLeft: 6,
-  },
-  credEmail: {
-    fontFamily: "'Space Mono', monospace",
-    fontSize: 10, color: '#666680', marginTop: 2,
-  },
-  refBox: {
-    marginTop: 14,
-    background: '#16161f',
-    borderWidth: 1, borderStyle: 'solid', borderColor: '#252540',
-    borderRadius: 10, padding: '12px 14px',
-  },
-  refTitle: {
-    fontFamily: "'Space Mono', monospace",
-    fontSize: 10, color: '#f0828a', marginBottom: 6,
-  },
-  refRow: {
-    fontFamily: "'Space Mono', monospace",
-    fontSize: 11, color: '#666680', lineHeight: 1.8,
-  },
-  refVal: { color: '#b0b0c8' },
   footer: {
     textAlign: 'center', marginTop: 20,
     fontFamily: "'Space Mono', monospace",
@@ -194,7 +137,6 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
   const [focusedId, setFocusedId] = useState(false)
   const [focusedPw, setFocusedPw] = useState(false)
-  const [hoveredCred, setHoveredCred] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
@@ -209,12 +151,6 @@ export default function LoginPage() {
     setLoading(false)
     if (result.ok) navigate('/')
     else setError(result.error)
-  }
-
-  const quickFill = (cred) => {
-    setId(cred.id)
-    setPassword(cred.password)
-    setError('')
   }
 
   return (
@@ -238,19 +174,19 @@ export default function LoginPage() {
           {/* Form section */}
           <div style={S.formWrap}>
             <div style={S.formTitle}>Admin Sign In</div>
-            <div style={S.formSub}>Enter your credentials to access the dashboard</div>
+            <div style={S.formSub}>Enter your username and password</div>
 
             <form onSubmit={handleSubmit}>
-              {/* Email */}
+              {/* Username */}
               <div style={S.inputWrap}>
-                <label style={S.label}>Admin ID / Email</label>
+                <label style={S.label}>Username</label>
                 <input
-                  type="email"
+                  type="text"
                   value={id}
                   onChange={e => setId(e.target.value)}
                   onFocus={() => setFocusedId(true)}
                   onBlur={() => setFocusedId(false)}
-                  placeholder="admin@schemaiq.ai"
+                  placeholder="admin"
                   required
                   style={{ ...S.input, ...(focusedId ? S.inputFocus : {}) }}
                 />
@@ -297,50 +233,6 @@ export default function LoginPage() {
                 }
               </button>
             </form>
-          </div>
-
-          {/* Demo credentials */}
-          <div style={S.credsWrap}>
-            <div style={S.credsTitle}>🔑 Demo Credentials — click to fill</div>
-
-            {DEMO_CREDENTIALS.map((cred, i) => (
-              <button
-                key={cred.id}
-                type="button"
-                onClick={() => quickFill(cred)}
-                onMouseEnter={() => setHoveredCred(i)}
-                onMouseLeave={() => setHoveredCred(null)}
-                style={{
-                  ...S.credBtn,
-                  ...(hoveredCred === i
-                    ? { borderColor: '#c0392b', background: 'rgba(192,57,43,0.06)' }
-                    : {}),
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={S.credAvatar}>{cred.initials}</div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={S.credName}>{cred.name}</span>
-                      <span style={S.credRole}>{cred.role}</span>
-                    </div>
-                    <div style={S.credEmail}>{cred.id}</div>
-                  </div>
-                </div>
-                <span style={{ color: hoveredCred === i ? '#f0828a' : '#444458', fontSize: 14 }}>→</span>
-              </button>
-            ))}
-
-            {/* Credential reference box */}
-            <div style={S.refBox}>
-              <div style={S.refTitle}>📋 Credential Reference</div>
-              <div style={S.refRow}>
-                ID: <span style={S.refVal}>admin@schemaiq.ai</span>
-              </div>
-              <div style={S.refRow}>
-                Pass: <span style={S.refVal}>Kaizen@2025</span>
-              </div>
-            </div>
           </div>
         </div>
 
