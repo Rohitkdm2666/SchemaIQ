@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react'
 import { Panel, PanelHeader, PanelBody, Tag, Button, MetricCard, QualityBar, Toggle, Input, Select } from '../components/ui.jsx'
 import { RELATIONSHIPS, QUALITY_SCORES, ER_LINKS } from '../data/db.js' // ER_LINKS might be empty now
 import ERDiagram from '../components/ERDiagram.jsx'
+import ClassicERDiagram from '../components/ClassicERDiagram.jsx'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { schemaToGraph } from '../utils/schemaToGraph.js'
 
@@ -33,6 +34,7 @@ export function ERDiagramPage() {
   const canvasRef = useRef(null)
   const [selected, setSelected] = useState(null)
   const [fullscreen, setFullscreen] = useState(false)
+  const [diagramMode, setDiagramMode] = useState('modern')
 
   const [graphData, setGraphData] = useState({ nodes: [], links: [] })
   const [loading, setLoading] = useState(true)
@@ -83,6 +85,10 @@ export function ERDiagramPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px - 64px)' }}>
       <PageHeader title="Custom ER Diagram Viewer" sub="Smart Layout Engine · Expand/Collapse Nodes · Minimap · Search">
+        <div style={{ display: 'flex', background: '#16161f', borderRadius: 8, padding: 4, marginRight: 16 }}>
+           <button onClick={() => setDiagramMode('modern')} style={{ background: diagramMode === 'modern' ? '#c0392b' : 'transparent', color: diagramMode === 'modern' ? '#fff' : '#666680', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 11, fontFamily: "'Space Mono',monospace", cursor: 'pointer', transition: '0.2s' }}>Modern Relation</button>
+           <button onClick={() => setDiagramMode('classic')} style={{ background: diagramMode === 'classic' ? '#c0392b' : 'transparent', color: diagramMode === 'classic' ? '#fff' : '#666680', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 11, fontFamily: "'Space Mono',monospace", cursor: 'pointer', transition: '0.2s' }}>Classic ER (Chen)</button>
+        </div>
         <Button variant="ghost" onClick={() => svgRef.current?.__zoomOut?.()}>－</Button>
         <Button variant="ghost" onClick={() => svgRef.current?.__resetZoom?.()}>⊙ Reset</Button>
         <Button variant="ghost" onClick={() => svgRef.current?.__zoomIn?.()}>＋</Button>
@@ -124,8 +130,10 @@ export function ERDiagramPage() {
         >
           {loading ? (
             <div style={{ color: '#e8e8f0', padding: 20 }}>Loading AI Schema Engine...</div>
-          ) : (
+          ) : diagramMode === 'modern' ? (
             <ERDiagram svgRef={svgRef} nodes={graphData.nodes} links={graphData.links} onNodeClick={handleNodeClick} />
+          ) : (
+            <ClassicERDiagram svgRef={svgRef} nodes={graphData.nodes} links={graphData.links} />
           )}
         </div>
 
@@ -651,6 +659,45 @@ export function ConnectionsPage() {
   ])
   const [testing, setTesting] = useState(false)
 
+  // NEW STATES FOR FORM BUILDER
+  const [inputMode, setInputMode] = useState('form') // 'url' | 'form' | 'file'
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [formDb, setFormDb] = useState({
+    engine: 'mysql+pymysql',
+    user: 'root',
+    password: 'root',
+    host: 'localhost',
+    port: '3306',
+    database: 'practice_company'
+  })
+
+  const runFileUpload = async () => {
+    if (!selectedFile) {
+      setLog(prev => [...prev, { color: '#f39c12', msg: '  [ WARN ] Please select a file first!' }]);
+      return;
+    }
+    setTesting(true);
+    setLog([{ color: '#3498db', msg: `[ INFO ] Uploading ${selectedFile.name}...` }]);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      const res = await fetch('http://localhost:8001/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'uploaded') {
+        setLog(prev => [...prev, { color: '#27ae60', msg: `  [ OK ] Successfully loaded ${selectedFile.name} into virtual SQLite memory` }]);
+        fetchData(); // Refresh everything
+      } else {
+        setLog(prev => [...prev, { color: '#e74c3c', msg: `  [ ERR ] ${data.detail || 'Upload failed'}` }]);
+      }
+    } catch(err) {
+      setLog(prev => [...prev, { color: '#e74c3c', msg: `  [ ERR ] Upload failed: ${err.message}` }]);
+    }
+    setTesting(false);
+  }
+
   const fetchData = () => {
     fetch('http://localhost:8001/api/schema?infer=true')
       .then(res => res.json())
@@ -690,6 +737,11 @@ export function ConnectionsPage() {
     // Auto-construct URL if none provided manually
     let finalUrl = customDbUrl || "sqlite:///olist.db"
     
+    if (inputMode === 'form') {
+      const { engine, user, password, host, port, database } = formDb;
+      finalUrl = `${engine}://${user}:${password}@${host}:${port}/${database}`
+    }
+    
     try {
       const res = await fetch('http://localhost:8001/api/connect', {
         method: 'POST',
@@ -704,7 +756,10 @@ export function ConnectionsPage() {
         setLog(prev => [...prev, { color: '#e74c3c', msg: `  [ ERR ] ${data.detail || 'Connection failed'}` }])
       }
     } catch(err) {
-      setLog(prev => [...prev, { color: '#e74c3c', msg: `  [ ERR ] Fetch failed: ${err.message}` }])
+      setLog(prev => [...prev, 
+        { color: '#e74c3c', msg: `  [ ERR ] Fetch failed: ${err.message}` },
+        { color: '#f39c12', msg: `  [ HINT ] This typically means a driver (e.g. pymysql for MySQL) is missing in the Python backend, crashing the request.` }
+      ])
     }
     setTesting(false)
   }
@@ -768,16 +823,65 @@ export function ConnectionsPage() {
           <PanelHeader title="Configure Connection" />
           <PanelBody>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div><Label>Database URL (Full connection string)</Label>
-                <Input placeholder="e.g. postgresql://user:pass@localhost:5432/db OR sqlite:///data.db OR /path/to/data.csv" 
-                       value={customDbUrl} 
-                       onChange={e => setCustomDbUrl(e.target.value)} />
+              <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                <button 
+                  onClick={() => setInputMode('url')} 
+                  style={{ background: inputMode === 'url' ? '#c0392b' : 'transparent', color: inputMode === 'url' ? '#fff' : '#666680', border: '1px solid #c0392b', borderRadius: 6, padding: '4px 12px', fontSize: 11, cursor: 'pointer', fontFamily: "'Space Mono', monospace" }}
+                >Raw URL String</button>
+                <button 
+                  onClick={() => setInputMode('form')} 
+                  style={{ background: inputMode === 'form' ? '#c0392b' : 'transparent', color: inputMode === 'form' ? '#fff' : '#666680', border: '1px solid #c0392b', borderRadius: 6, padding: '4px 12px', fontSize: 11, cursor: 'pointer', fontFamily: "'Space Mono', monospace" }}
+                >Form Builder</button>
+                <button 
+                  onClick={() => setInputMode('file')} 
+                  style={{ background: inputMode === 'file' ? '#c0392b' : 'transparent', color: inputMode === 'file' ? '#fff' : '#666680', border: '1px solid #c0392b', borderRadius: 6, padding: '4px 12px', fontSize: 11, cursor: 'pointer', fontFamily: "'Space Mono', monospace" }}
+                >File Upload</button>
               </div>
+
+              {inputMode === 'url' ? (
+                <div>
+                  <Label>Database URL (Full connection string)</Label>
+                  <Input placeholder="e.g. postgresql://user:pass@localhost:5432/db OR sqlite:///data.db" 
+                         value={customDbUrl} 
+                         onChange={e => setCustomDbUrl(e.target.value)} />
+                </div>
+              ) : inputMode === 'file' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <Label>Upload Database File (.csv or .sql)</Label>
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 80, border: '2px dashed #1e1e2e', borderRadius: 12, background: '#16161f', cursor: 'pointer', color: '#666680', fontFamily: "'Space Mono', monospace", fontSize: 13, transition: '0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = '#c0392b'} onMouseLeave={e => e.currentTarget.style.borderColor = '#1e1e2e'}>
+                    <input type="file" accept=".csv,.sql,.sqlite" onChange={e => setSelectedFile(e.target.files[0])} style={{ display: 'none' }} />
+                    {selectedFile ? <span style={{ color: '#2980b9' }}>📁 Selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span> : <span>Drag & Drop or Click to Select File</span>}
+                  </label>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  <div>
+                    <Label>Engine Builder</Label>
+                    <select 
+                      value={formDb.engine} 
+                      onChange={e => setFormDb({...formDb, engine: e.target.value})}
+                      style={{ width: '100%', background: '#16161f', color: '#e8e8f0', border: '1px solid #1e1e2e', borderRadius: 8, padding: '9px', fontSize: 13, fontFamily: "'Space Mono', monospace" }}
+                    >
+                      <option value="mysql+pymysql">MySQL (PyMySQL)</option>
+                      <option value="postgresql">PostgreSQL</option>
+                      <option value="mysql">MySQL (Native)</option>
+                      <option value="mssql+pyodbc">SQL Server</option>
+                    </select>
+                  </div>
+                  <div><Label>Host</Label><Input value={formDb.host} onChange={e => setFormDb({...formDb, host: e.target.value})} /></div>
+                  <div><Label>Port</Label><Input value={formDb.port} onChange={e => setFormDb({...formDb, port: e.target.value})} /></div>
+                  <div><Label>Username</Label><Input value={formDb.user} onChange={e => setFormDb({...formDb, user: e.target.value})} /></div>
+                  <div><Label>Password</Label><Input type="password" value={formDb.password} onChange={e => setFormDb({...formDb, password: e.target.value})} /></div>
+                  <div><Label>Database</Label><Input value={formDb.database} onChange={e => setFormDb({...formDb, database: e.target.value})} /></div>
+                </div>
+              )}
               <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#666680', marginTop: -6 }}>
                 💡 Fast connect using full URL string. Supports MySQL, Postgres, SQLite, CSV.
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                <Button variant="primary" onClick={runTest}>{testing ? '⟳ Connecting…' : '⚡ Connect & Scan'}</Button>
+                <Button variant="primary" onClick={inputMode === 'file' ? runFileUpload : runTest}>
+                  {testing ? (inputMode === 'file' ? '⟳ Uploading…' : '⟳ Connecting…') : (inputMode === 'file' ? '📁 Upload & Scan' : '⚡ Connect & Scan')}
+                </Button>
               </div>
             </div>
           </PanelBody>
