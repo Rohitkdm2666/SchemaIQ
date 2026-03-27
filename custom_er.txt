@@ -1,0 +1,47 @@
+# Custom ER Diagram Implementation - SchemaIQ
+
+We built a **Dual-Mode Dynamic ER Diagram Viewer** using React and `d3.js`. Instead of using an off-the-shelf static diagram library, we chose D3 because it provides unlimited flexibility for rendering rich HTML tooltips, custom shapes (diamonds/ovals), and fluid force-directed animations.
+
+Here is a breakdown of the approach, tools, and important functions used:
+
+## 1. Core Tooling
+- **React (`useRef`, `useEffect`)**: Used to encapsulate the D3 DOM manipulation securely inside a standard React component pipeline.
+- **d3.js (v7)**: The primary rendering engine. We specifically rely on `d3-selection` for SVG DOM binding, `d3-force` for automatic layout calculation (gravity/physics), and `d3-zoom` for panning and zooming.
+
+## 2. Approach & Architecture
+We extract a raw schema directly from whatever database is connected via `/api/schema`, passing it to our transformer utility (`frontend/src/utils/schemaToGraph.js`).
+
+This utility restructures standard database tables into two core arrays:
+1. `nodes`: Objects representing shapes on the canvas (Tables, Columns, Relationships).
+2. `links`: Directed edges showing how they connect (`source` to `target`).
+
+We map these arrays into two distinct visual mode components that the user can toggle between:
+
+---
+
+### A. The "Modern View" (`ERDiagram.jsx`)
+**Philosophy**: Built for developers. Shows tables as "Cards" featuring column lists, primary/foreign keys, and data types directly inside the table shape.
+
+* **Foreign Object injection**: Instead of drawing text native to SVG (which is notoriously difficult to style and wrap), we draw an `<svg:foreignObject>` for each node. This allows us to inject pure React-style HTML `<div>` elements inside the SVG canvas.
+* **Aesthetics**: We styled these HTML panels with space-grey backgrounds, translucent gradients, and custom scrollbars to make it look like a sleek terminal UI.
+* **Physics Engine**: Because tables are large, we use `d3.forceManyBody().strength(-1500)` to heavily repel tables away from each other, preventing overlap. We use `d3.forceLink().distance(250)` to keep related tables reasonably far apart.
+
+---
+
+### B. The "Classic ER View" (`ClassicERDiagram.jsx`)
+**Philosophy**: Built for academic and classic data modeling (Peter Chen notation). Reverts to standard topological shapes.
+
+* **Topological Generation**: The transformer explodes a single Table into many localized network nodes:
+   - One **Rectangle** node (The Entity/Table itself).
+   - Many **Oval** nodes (The Attributes/Columns, linked to the Table).
+   - **Diamond** nodes (Injected specifically between two Tables that share a Foreign Key).
+* **SVG primitives**: Instead of HTML objects, this mode purely draws SVG elements—using `<rect>`, `<ellipse>`, and `<polygon>` (for diamonds).
+* **Physics Engine Tuning**: Attributes (ovals) are structurally bound to their parent table very closely (`forceLink().distance(60)`), whereas relationship diamonds are kept further away (`forceLink().distance(150)`). This creates tight orbital "clusters" around every table!
+
+---
+
+## 3. Important Functions
+1. `d3.forceSimulation(nodes)`: Starts the physics engine. It runs the simulation in the background to calculate optimal `x` and `y` coordinates for every shape.
+2. `simulation.on("tick", ...)`: Every time the physics engine calculates a movement step (which happens 60 times a second), this listener fires, actively updating the `cx, cy, x, y` spatial coordinates of the shapes to create that fluid drop-in animation.
+3. `d3.zoom().on("zoom", ...)`: Captures user mouse scrolling or pinching to universally scale and translate the root `<svg>` `<g>` wrapper, giving you infinite canvas drag navigation.
+4. `d3.drag()`: Attached directly to the table/entity nodes, allowing you to manually grab a Node, suspend the physics tick, move the mouse, and "pin" the node to a new location.

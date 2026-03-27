@@ -22,16 +22,20 @@ async def upload(file: UploadFile):
     dest.write_bytes(content)
 
     suffix = dest.suffix.lower()
-    if suffix == ".csv":
-        loaded = load_file(str(dest), sqlite_out_path=str(SHARED_SQLITE_PATH), append=True)
-    else:
-        loaded = load_file(str(dest), sqlite_out_path=str(UPLOAD_DIR / f"{dest.stem}.sqlite"), append=False)
+    try:
+        if suffix == ".csv":
+            loaded = load_file(str(dest), sqlite_out_path=str(SHARED_SQLITE_PATH), append=True)
+        else:
+            loaded = load_file(str(dest), sqlite_out_path=str(UPLOAD_DIR / f"{dest.stem}.sqlite"), append=False)
 
-    set_db_url(loaded["db_url"])
+        set_db_url(loaded["db_url"])
 
-    return {
-        "status": "uploaded",
-        "path": str(dest),
-        "db_url": loaded["db_url"],
-        "sqlite_path": loaded.get("sqlite_path"),
-    }
+        return {
+            "status": "uploaded",
+            "path": str(dest),
+            "db_url": loaded["db_url"],
+            "sqlite_path": loaded.get("sqlite_path"),
+        }
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
