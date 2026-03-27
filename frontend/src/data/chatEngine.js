@@ -66,8 +66,16 @@ export async function checkHealth() {
     const res = await fetch(`${API_BASE}/health`)
     return await res.json()
   } catch {
-    return { db: false, anthropic_api: false, ready: false }
+    return { db: false, api_key_set: false, ready: false }
   }
+}
+
+export async function getSuggestions() {
+  try {
+    const res = await fetch(`${API_BASE}/api/suggestions`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
 }
 
 export async function fetchSchema() {

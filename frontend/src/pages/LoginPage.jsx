@@ -162,8 +162,16 @@ export default function LoginPage() {
       <div style={S.wrap}>
         {/* Logo */}
         <div style={S.logoWrap}>
-          <div style={S.logoBox}>🧠</div>
-          <span style={S.logoName}>SchemaIQ</span>
+          <img
+            src="/schemaiqlogo.png"
+            alt="SchemaIQ Logo"
+            style={{
+              width: 280, // Larger for Login Page
+              height: 'auto',
+              display: 'inline-block',
+              marginBottom: 8
+            }}
+          />
           <span style={S.logoSub}>AI Data Intelligence Platform</span>
         </div>
 

@@ -197,55 +197,15 @@ export function ERDiagramPage() {
 }
 
 // ─── DATA DICTIONARY ─────────────────────────────────────────────────────────
-const DICT_TABLES = [
-  {
-    name: 'customers', rows: '99,441', cols: 5, pk: 'customer_id',
-    summary: 'Stores one record per order placement, not per unique person. Use customer_unique_id to track repeat buyers. Primarily used for delivery geolocation and regional segmentation.',
-    columns: [
-      { name: 'customer_id', type: 'VARCHAR(32)', tags: ['PK', 'NOT NULL'], desc: 'Unique hashed identifier per order.', biz: 'Primary join key across orders and reviews. Anonymized for privacy.' },
-      { name: 'customer_unique_id', type: 'VARCHAR(32)', tags: ['NOT NULL'], desc: 'Persistent ID across multiple orders.', biz: 'Use for LTV calculations and repeat purchase tracking.' },
-      { name: 'customer_zip_code_prefix', type: 'INT', tags: ['NOT NULL', 'IDX'], desc: 'First 5 digits of postal code.', biz: 'Geo-segmentation. Join to geolocation for lat/lng.' },
-      { name: 'customer_city', type: 'VARCHAR(64)', tags: ['NOT NULL'], desc: 'City name from postal code.', biz: 'City-level demand forecasting and regional campaigns.' },
-      { name: 'customer_state', type: 'CHAR(2)', tags: ['NOT NULL'], desc: 'Brazilian state abbreviation.', biz: 'State-level tax rules and compliance reporting.' },
-    ]
-  },
-  {
-    name: 'orders', rows: '99,441', cols: 8, pk: 'order_id',
-    summary: 'Central fact table. Each row is one complete order lifecycle. Connects to customers, order_items, payments, and reviews — the primary join hub of the schema.',
-    columns: [
-      { name: 'order_id', type: 'VARCHAR(32)', tags: ['PK', 'NOT NULL'], desc: 'Unique order hash ID.', biz: 'Most important join key — referenced by 4 downstream tables.' },
-      { name: 'customer_id', type: 'VARCHAR(32)', tags: ['FK', 'NOT NULL'], desc: 'FK to customers.', biz: 'Links orders to customer geographic data.' },
-      { name: 'order_status', type: 'VARCHAR(16)', tags: ['NOT NULL'], desc: 'Status: delivered, shipped, processing, canceled.', biz: 'Filter to "delivered" for revenue analysis.' },
-      { name: 'order_purchase_timestamp', type: 'TIMESTAMP', tags: ['NOT NULL'], desc: 'UTC timestamp when order was placed.', biz: 'Seasonality analysis and cohort construction.' },
-      { name: 'order_approved_at', type: 'TIMESTAMP', tags: ['NULLABLE'], desc: 'Payment approval timestamp.', biz: 'Gap from purchase reflects payment processing lag.' },
-      { name: 'order_delivered_carrier_date', type: 'TIMESTAMP', tags: ['NULLABLE'], desc: 'When seller handed to carrier.', biz: 'Measures seller fulfilment speed (SLA compliance).' },
-      { name: 'order_delivered_customer_date', type: 'TIMESTAMP', tags: ['NULLABLE'], desc: 'Actual delivery datetime.', biz: 'Compare to estimated for SLA breach rate.' },
-      { name: 'order_estimated_delivery_date', type: 'TIMESTAMP', tags: ['NOT NULL'], desc: 'Estimated delivery date at purchase.', biz: 'Ground truth for customer promise — compute on-time rate.' },
-    ]
-  },
-  {
-    name: 'products', rows: '32,951', cols: 9, pk: 'product_id',
-    summary: 'Product catalogue with physical attributes. Names are hashed for anonymisation. Dimension data is critical for freight cost modelling.',
-    columns: [
-      { name: 'product_id', type: 'VARCHAR(32)', tags: ['PK', 'NOT NULL'], desc: 'Unique hashed product ID.', biz: 'Join to order_items for sales volume.' },
-      { name: 'product_category_name', type: 'VARCHAR(64)', tags: ['NULLABLE'], desc: 'Category in Portuguese. ~0.3% null.', biz: 'Primary dimension for category-level analysis.' },
-      { name: 'product_name_lenght', type: 'INT', tags: ['NULLABLE'], desc: 'Char count of name (typo: "lenght").', biz: 'Proxy for listing quality.' },
-      { name: 'product_description_lenght', type: 'INT', tags: ['NULLABLE'], desc: 'Char count of description.', biz: 'Richer descriptions correlate with conversion rate.' },
-      { name: 'product_photos_qty', type: 'INT', tags: ['NULLABLE'], desc: 'Number of listing photos.', biz: 'More photos improve conversion rates.' },
-      { name: 'product_weight_g', type: 'INT', tags: ['NULLABLE'], desc: 'Weight in grams.', biz: 'Key input for freight cost calculation.' },
-      { name: 'product_length_cm', type: 'INT', tags: ['NULLABLE'], desc: 'Length in cm.', biz: 'Combined with height and width for volumetric weight.' },
-      { name: 'product_height_cm', type: 'INT', tags: ['NULLABLE'], desc: 'Height in cm.', biz: 'Combined with length and width for volumetric weight.' },
-      { name: 'product_width_cm', type: 'INT', tags: ['NULLABLE'], desc: 'Width in cm.', biz: 'Combined with length and height for volumetric weight.' },
-    ]
-  },
-]
+// DICT_TABLES removed to avoid static data flash.
 
 const TV = { PK: 'pk', FK: 'fk', IDX: 'idx', 'NOT NULL': 'nn', NULLABLE: 'warn' }
 
 export function DictionaryPage() {
-  const [dictTables, setDictTables] = useState(DICT_TABLES)
-  const [activeTab, setActiveTab] = useState('customers')
+  const [dictTables, setDictTables] = useState([])
+  const [activeTab, setActiveTab] = useState('')
   const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Use the new AI-powered dictionary endpoint
@@ -278,6 +238,9 @@ export function DictionaryPage() {
           }))
           setDictTables(parsed)
           setActiveTab(parsed[0].name)
+          setLoading(false)
+        } else {
+          setLoading(false)
         }
       })
       .catch(err => {
@@ -302,12 +265,25 @@ export function DictionaryPage() {
               setDictTables(parsed)
               setActiveTab(parsed[0].name)
             }
+            setLoading(false)
           })
-          .catch(err2 => console.error('Both endpoints failed:', err2))
+          .catch(err2 => {
+            console.error('Both endpoints failed:', err2)
+            setLoading(false)
+          })
       })
   }, [])
 
-  const t = dictTables.find(x => x.name === activeTab) || dictTables[0] || { name: 'Loading...', columns: [], rows: 0, cols: 0 }
+  if (loading) return <div style={{ color: '#e8e8f0', padding: 40, textAlign: 'center', fontFamily: "'Space Mono',monospace" }}>🔄 Analyzing Schema and Generating Dictionary...</div>
+  if (dictTables.length === 0) return (
+    <div style={{ padding: 40, textAlign: 'center' }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>📁</div>
+      <h2 style={{ color: '#e8e8f0', fontFamily: "'Space Mono',monospace" }}>No Database Connected</h2>
+      <p style={{ color: '#666680', marginTop: 8 }}>Please connect a database in the Connections page to generate the AI Data Dictionary.</p>
+    </div>
+  )
+
+  const t = dictTables.find(x => x.name === activeTab) || dictTables[0]
   const cols = (t.columns || []).filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.biz || '').toLowerCase().includes(search.toLowerCase()))
 
   const handleExport = () => {

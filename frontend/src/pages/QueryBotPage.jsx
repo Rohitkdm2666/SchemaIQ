@@ -1,20 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
-import { generateResponse, checkHealth } from '../data/chatEngine.js'
+import { generateResponse, checkHealth, getSuggestions } from '../data/chatEngine.js'
 import { Panel, Tag } from '../components/ui.jsx'
 import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts'
 
-const SUGGESTIONS = [
+const DEFAULT_SUGGESTIONS = [
   'How many orders were delivered in March 2018?',
   'What are the top 5 product categories by total revenue?',
   'Which state has the most customers?',
   'What is the average review score by product category?',
   'How many orders were canceled in 2018?',
   'What is the total GMV (revenue) across all delivered orders?',
-  'Which payment type is most popular?',
-  'What are the top 10 sellers by number of orders?',
 ]
 
 // ── Markdown bold renderer ─────────────────────────────────────────────────
@@ -240,8 +238,8 @@ function HealthBanner({ health }) {
   if (health.ready) return null  // all good, show nothing
 
   const issues = []
-  if (!health.db) issues.push('Database not loaded (run load_data.py)')
-  if (!health.anthropic_api) issues.push('ANTHROPIC_API_KEY not set in .env')
+  if (!health.db) issues.push('No database connected. Please go to the Connections page.')
+  if (!health.api_key_set) issues.push('GEMINI_API_KEY not set in .env')
 
   return (
     <div style={{ background: 'rgba(243,156,18,0.1)', border: '1px solid rgba(243,156,18,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -252,7 +250,6 @@ function HealthBanner({ health }) {
           <div key={i} style={{ fontSize: 12, color: '#b0b0c8', lineHeight: 1.6 }}>• {issue}</div>
         ))}
         <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#666680', marginTop: 6 }}>
-          See README.md for setup instructions
         </div>
       </div>
     </div>
@@ -267,19 +264,33 @@ export default function QueryBotPage() {
       id: 0, role: 'assistant', time: now(),
       response: {
         type: 'help',
-        text: "👋 Hi! I'm **QueryBot** — connected to the real Olist database.\n\nAsk me anything in plain English and I'll write the SQL, run it, and explain the results.",
+        text: "👋 Hi! I'm **QueryBot**.\n\nAsk me anything in plain English and I'll write the SQL, run it, and explain the results.",
       }
     }]
   })
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const [health, setHealth] = useState(null)
+  const [suggestions, setSuggestions] = useState(DEFAULT_SUGGESTIONS)
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
   // Check backend health on mount
   useEffect(() => {
-    checkHealth().then(setHealth)
+    const init = async () => {
+      const h = await checkHealth()
+      setHealth(h)
+      if (h?.db) {
+        setLoadingSuggestions(true)
+        const s = await getSuggestions()
+        if (s?.suggestions?.length > 0) {
+          setSuggestions(s.suggestions)
+        }
+        setLoadingSuggestions(false)
+      }
+    }
+    init()
   }, [])
 
   // Persist messages to localStorage
@@ -331,7 +342,7 @@ export default function QueryBotPage() {
       <HealthBanner health={health} />
 
       <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
-        {/* Chat area */}
+        {/* Chat area (Full Width) */}
         <Panel style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {/* Messages */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '24px 24px 8px', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -356,7 +367,7 @@ export default function QueryBotPage() {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKey}
-                  placeholder="Ask anything… e.g. 'Top 5 categories by revenue in 2018'"
+                  placeholder="Ask anything… e.g. 'Top 5 categories by revenue'"
                   rows={1}
                   disabled={typing}
                   style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: '#e8e8f0', fontFamily: "'DM Sans',sans-serif", resize: 'none', lineHeight: 1.6, maxHeight: 120 }}
@@ -368,96 +379,33 @@ export default function QueryBotPage() {
                 style={{ width: 44, height: 44, background: input.trim() && !typing ? '#c0392b' : '#16161f', border: 'none', borderRadius: 12, color: '#fff', fontSize: 18, cursor: input.trim() && !typing ? 'pointer' : 'not-allowed', opacity: input.trim() && !typing ? 1 : 0.4, transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >↑</button>
             </div>
+
+            {/* Wrapped Suggestions (Inline below input) */}
+            <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {loadingSuggestions ? (
+                <div style={{ padding: '4px 12px', color: '#666680', fontSize: 11, fontFamily: "'Space Mono',monospace" }}>⟳ Generating hints...</div>
+              ) : (
+                suggestions.map((s, i) => (
+                  <button key={i} onClick={() => send(s)} disabled={typing}
+                    style={{
+                      background: '#16161f', border: '1px solid #1e1e2e',
+                      borderRadius: 20, padding: '6px 14px', fontSize: 11, color: '#b0b0c8',
+                      cursor: typing ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { if (!typing) { e.currentTarget.style.borderColor = '#c0392b'; e.currentTarget.style.background = 'rgba(192,57,43,0.1)' } }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e1e2e'; e.currentTarget.style.background = '#16161f' }}
+                  >
+                    {s}
+                  </button>
+                ))
+              )}
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingLeft: 4 }}>
               <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#333348' }}>Enter to send · Shift+Enter for new line</span>
-              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#333348' }}>Real Olist DB · Claude API</span>
             </div>
           </div>
         </Panel>
-
-        {/* Sidebar */}
-        <div
-          id="querybot-sidebar"
-          style={{
-            width: 250,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            overflowY: 'auto',
-            paddingRight: '6px',
-            maxHeight: '100%',
-            flexShrink: 0
-          }}
-          className="custom-scrollbar"
-        >
-          {/* Suggestions */}
-          <Panel>
-            <div style={{ padding: '16px 18px', borderBottom: '1px solid #1e1e2e' }}>
-              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, fontWeight: 700, color: '#e8e8f0' }}>💡 Try These</div>
-              <div style={{ fontSize: 11, color: '#666680', marginTop: 3 }}>Real queries on live data</div>
-            </div>
-            <div style={{
-              padding: '10px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 5,
-              maxHeight: 280,
-              overflowY: 'auto'
-            }} className="custom-scrollbar">
-              {SUGGESTIONS.map((s, i) => (
-                <button key={i} onClick={() => send(s)} disabled={typing}
-                  style={{ width: '100%', textAlign: 'left', background: '#16161f', border: '1px solid #1e1e2e', borderRadius: 9, padding: '10px 13px', cursor: typing ? 'not-allowed' : 'pointer', transition: 'all 0.15s', opacity: typing ? 0.5 : 1 }}
-                  onMouseEnter={e => { if (!typing) { e.currentTarget.style.borderColor = '#c0392b'; e.currentTarget.style.background = 'rgba(192,57,43,0.05)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e1e2e'; e.currentTarget.style.background = '#16161f' }}
-                >
-                  <p style={{ fontSize: 11, color: '#b0b0c8', lineHeight: 1.5, margin: 0 }}>{s}</p>
-                </button>
-              ))}
-            </div>
-          </Panel>
-
-          {/* Backend status */}
-          <Panel>
-            <div style={{ padding: '16px 18px', borderBottom: '1px solid #1e1e2e' }}>
-              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, fontWeight: 700, color: '#e8e8f0' }}>⚡ Backend Status</div>
-            </div>
-            <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                { label: 'Olist SQLite DB', ok: health?.db },
-                { label: 'Anthropic API Key', ok: health?.anthropic_api },
-                { label: 'FastAPI Server', ok: health !== null },
-              ].map(item => (
-                <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12, color: '#b0b0c8' }}>{item.label}</span>
-                  <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: item.ok ? '#27ae60' : health === null ? '#f39c12' : '#e74c3c' }}>
-                    {item.ok ? '✓ Ready' : health === null ? '…' : '✗ Missing'}
-                  </span>
-                </div>
-              ))}
-              <button onClick={() => checkHealth().then(setHealth)}
-                style={{ marginTop: 4, background: 'none', border: '1px solid #1e1e2e', borderRadius: 7, padding: '6px 12px', fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#666680', cursor: 'pointer' }}>
-                ⟳ Refresh
-              </button>
-            </div>
-          </Panel>
-
-          {/* Query tips */}
-          <Panel>
-            <div style={{ padding: '14px 18px' }}>
-              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#666680', marginBottom: 10 }}>🔍 Query Tips</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  'Ask in plain English — no SQL needed',
-                  'Include dates like "in 2018" or "between Jan–Mar 2018"',
-                  'Ask for "top 10", "average", "total", "count"',
-                  'Reference any table: orders, products, sellers, reviews',
-                ].map((tip, i) => (
-                  <div key={i} style={{ fontSize: 11, color: '#666680', lineHeight: 1.5 }}>• {tip}</div>
-                ))}
-              </div>
-            </div>
-          </Panel>
-        </div>
       </div>
     </div>
   )
