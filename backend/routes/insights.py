@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import google.generativeai as genai
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 
 from db.connection import get_engine
 from db.inspector import inspect_database
@@ -77,7 +77,7 @@ def _fallback_insights(tables: List[Dict[str, Any]], relationships: List[Dict[st
             break
 
     return {
-        "overview_text": f"Schema mapped for {len(table_names)} tables using standard heuristics.",
+        "overview_text": f"Schema mapped for {len(table_names)} tables using standard heuristics. Fallback reason: {reason}",
         "table_relationships_text": rel_text,
         "niche_columns": niche,
         "alternate_methods": [
@@ -188,11 +188,15 @@ DATABASE CONTEXT:
         res = {"generated_at": datetime.now().isoformat(), "source": "system", **parsed}
         INSIGHTS_CACHE[cache_key] = res
         return res
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {
             "generated_at": datetime.now().isoformat(),
             "source": "system",
-            **_fallback_insights([], [], {"tables": []}, f"Execution error: {str(e)}"),
+            **_fallback_insights([], [], {}, f"AI Error: {str(e)}"),
         }
 
 

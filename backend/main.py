@@ -41,8 +41,7 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from db.connection import get_engine as get_active_engine, db_state
-
-load_dotenv()
+load_dotenv(override=True)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 API_KEY = os.getenv("GEMINI_API_KEY", "")
