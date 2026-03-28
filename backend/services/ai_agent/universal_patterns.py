@@ -25,12 +25,104 @@ class UniversalPatternEngine:
         self.patterns = self._build_comprehensive_patterns()
         self.domain_keywords = self._build_domain_keywords()
         self.data_type_contexts = self._build_data_type_contexts()
+        self.rich_business_meanings = self._build_rich_business_meanings()
         
     def _build_comprehensive_patterns(self) -> Dict[str, Dict]:
         """
         Comprehensive pattern database covering ALL possible column naming conventions
         """
         return {
+            # ═══════════════════════════════════════════════════════════════
+            # BIOTECH & LABORATORY (Highest Priority)
+            # ═══════════════════════════════════════════════════════════════
+            r'.*specimen.*|.*assay.*|.*sample.*': {
+                'desc': 'Biological specimen or lab sample identification',
+                'business': 'Unique record for a biological sample or laboratory test subject',
+                'category': 'healthcare'
+            },
+            r'.*ph_.*|^ph$': {
+                'desc': 'pH value (Acidity/Alkalinity)',
+                'business': 'Critical chemical measure of the sample acidity or alkalinity level',
+                'category': 'metrics'
+            },
+            r'.*conc_.*|.*concentration.*': {
+                'desc': 'Concentration level of {table}',
+                'business': 'Level of active substance or component measured in the sample',
+                'category': 'metrics'
+            },
+            r'.*viability.*|.*confluence.*': {
+                'desc': 'Cell viability or growth percentage',
+                'business': 'Percentage of live cells or surface area coverage in a biological culture',
+                'category': 'metrics'
+            },
+            
+            # ═══════════════════════════════════════════════════════════════
+            # IOT & TELEMETRY
+            # ═══════════════════════════════════════════════════════════════
+            r'.*sensor_.*|.*device_.*': {
+                'desc': 'IoT device or sensor identifier',
+                'business': 'Unique hardware identifier for a remote sensing device or actuator',
+                'category': 'technology'
+            },
+            r'.*reading.*|.*telemetry.*|.*payload.*': {
+                'desc': 'Sensor reading or telemetry data',
+                'business': 'Raw data captured by remote devices for monitoring and analysis',
+                'category': 'technology'
+            },
+            r'.*uptime.*|.*heartbeat.*': {
+                'desc': 'System uptime or connectivity signal',
+                'business': 'Health and connectivity indicator for remote hardware systems',
+                'category': 'technology'
+            },
+
+            # ═══════════════════════════════════════════════════════════════
+            # AEROSPACE & AVIATION
+            # ═══════════════════════════════════════════════════════════════
+            r'.*v[12]_.*|.*vr_.*|.*vref_.*': {
+                'desc': 'Critical flight safety speed (Decision/Rotation/Ref)',
+                'business': 'Mission-critical performance speed required for safe takeoff and landing operations.',
+                'category': 'aerospace'
+            },
+            r'.*alt_.*|.*amsl.*|^altitude$': {
+                'desc': 'Altitude Above Mean Sea Level (AMSL/FT)',
+                'business': 'Vertical positioning data critical for airspace management and separation.',
+                'category': 'aerospace'
+            },
+            r'.*mach.*|.*ias_.*|.*kts$': {
+                'desc': 'Aerodynamic speed metric (Mach/Indicated)',
+                'business': 'Airspeed parameter for flight envelope monitoring and fuel efficiency.',
+                'category': 'aerospace'
+            },
+            r'.*n[12]_.*|.*egt.*|.*itt.*': {
+                'desc': 'Engine core/fan performance and temperature',
+                'business': 'Real-time internal engine health metrics for turbine performance analysis.',
+                'category': 'aerospace'
+            },
+            r'.*ata_.*|.*lru_.*': {
+                'desc': 'Aviation maintenance standard (ATA/LRU)',
+                'business': 'Standardized maintenance classification for hardware logistics and reporting.',
+                'category': 'aerospace'
+            },
+
+            # ═══════════════════════════════════════════════════════════════
+            # BLOCKCHAIN & WEB3 (EXPERIMENTAL)
+            # ═══════════════════════════════════════════════════════════════
+            r'.*addr.*|.*hash.*|.*sha3.*': {
+                'desc': 'Cryptographic address or transaction hash',
+                'business': 'Immutable digital identity or transaction record in a distributed ledger.',
+                'category': 'fintech'
+            },
+            r'.*wei.*|.*gas.*|.*price_per_gas.*': {
+                'desc': 'Network computational fee or value unit',
+                'business': 'Economic parameter for network priority and resource consumption pricing.',
+                'category': 'fintech'
+            },
+            r'.*nonce.*|.*slot.*|.*epoch.*': {
+                'desc': 'Blockchain sequencing or timing parameter',
+                'business': 'Cryptographic sequence variable ensuring order and preventing replay attacks.',
+                'category': 'fintech'
+            },
+
             # ═══════════════════════════════════════════════════════════════
             # IDENTITY & KEYS
             # ═══════════════════════════════════════════════════════════════
@@ -470,21 +562,21 @@ class UniversalPatternEngine:
         """
         return {
             'varchar': {
-                'short': 'Short text field for names, codes, or brief descriptions',
-                'medium': 'Text field for descriptions, comments, or medium-length content',
-                'long': 'Long text field for detailed descriptions, articles, or extensive content'
+                'short': 'Compact text field for {column_name} identifiers, codes, or labels.',
+                'medium': 'Descriptive text field for {column_name} content or comments.',
+                'long': 'Extended text field for detailed {column_name} documentation or articles.'
             },
             'text': {
-                'default': 'Large text field for extensive content, documents, or detailed information'
+                'default': 'Rich text storage for comprehensive {column_name} details and narratives.'
             },
             'int': {
-                'default': 'Numeric integer value for counts, quantities, or whole number measurements'
+                'default': 'Numeric integer (whole number) tracking {column_name} counts or quantities.'
             },
             'decimal': {
-                'default': 'Precise decimal number for financial amounts, measurements, or calculated values'
+                'default': 'High-precision numeric value representing {column_name} measurements or financial data.'
             },
             'float': {
-                'default': 'Floating-point number for scientific calculations, ratios, or approximate values'
+                'default': 'Scientific numeric value for {column_name} ratios, percentages, or indicators.'
             },
             'boolean': {
                 'default': 'True/false flag indicating a binary state or condition'
@@ -506,8 +598,82 @@ class UniversalPatternEngine:
             }
         }
 
+    def _build_rich_business_meanings(self) -> Dict[str, str]:
+        """
+        Advanced professional business meanings for AI-inferred content types
+        """
+        return {
+            # Identity & Access
+            'Email': 'Primary digital contact point for customer outreach, automated notifications, and identity verification.',
+            'URL': 'Direct resource locator for external assets, web integration, and platform navigation.',
+            'IPv4': 'Network terminal endpoint for security auditing, geolocation, and infrastructure monitoring.',
+            'UUID': 'Distributed system identifier ensuring global record uniqueness without central coordination.',
+            
+            # Contact & Location
+            'Phone': 'Voice communication channel for customer support, emergency contact, and two-factor authentication.',
+            'Country Code': 'International geographic classifier for regulatory compliance, taxation, and regional service optimization.',
+            'Coordinates': 'Precision geographic telemetry for mapping, logistics tracking, and location-based services.',
+            'Address': 'Physical service delivery point or billing location for regional logistics and mailing operations.',
+            
+            # Financial & Commercial
+            'Credit Card': 'Sensitive financial payment instrument requiring rigorous PCI-DSS compliance and encryption.',
+            'IBAN': 'Standardized international bank identifier enabling secure cross-border financial settlements.',
+            'Currency': 'National monetary denomination for financial reconciliation and exchange rate calculations.',
+            'Price': 'Commercial valuation data critical for revenue generation and competitive pricing models.',
+            'Tax ID': 'Legal entity identifier required for fiscal reporting and governmental compliance.',
+            
+            # Technical & System
+            'Hardware ID': 'Physical device signature for hardware asset tracking and licensed terminal management.',
+            'Version': 'Software build iteration tracking for change management and feature deployment auditing.',
+            'JSON': 'Self-contained structured data payload for complex configuration and system interoperability.',
+            'Base64': 'Encoded binary content used for secure data transmission and embedded media storage.',
+            
+            # Biotech & Lab
+            'Biological Specimen': 'Unique biological subject identifier for clinical diagnostic or research tracking.',
+            'pH Value': 'Critical chemical acidity/alkalinity measurement for biological stability and laboratory analysis.',
+            'Concentration': 'Quantified density of an active chemical or biological agent within a measured sample volume.',
+            'Viability': 'Biological health indicator representing the percentage of live organisms in a culture or sample.',
+            
+            # Environmental & Radiological (Niche)
+            'Radioactivity pCi/L': 'Radiological concentration level (Picocuries per Liter) monitored for environmental safety and regulatory compliance.',
+            'Concentration mg/L': 'High-density chemical presence (Milligrams per Liter) in environmental or industrial samples.',
+            'Concentration ug/L': 'Trace-level chemical presence (Micrograms per Liter) requiring precision laboratory detection.',
+            'Turbidity': 'Environmental water quality indicator measuring liquid clarity and suspended particle density.',
+            'Particulate Matter': 'Atmospheric pollutant level (PM2.5/PM10) measured for air quality and public health monitoring.',
+            'Total Volatiles': 'Concentration of organic chemicals (VOCs) indicating indoor/outdoor chemical exposure levels.',
+            
+            # IoT & Industrial
+            'Telemetry Stream': 'High-frequency hardware status metrics for real-time monitoring and predictive maintenance.',
+            'Sensor ID': 'Individual hardware sensor reference for edge computing and distributed data acquisition.',
+            'MQTT Topic': 'Message brokerage routing path for asynchronous IoT communication and device control.',
+            'Signal Strength': 'RSSI measurement (dBm) representing the physical link quality of a wireless network connection.',
+            'Network Latency': 'Round-trip timing (ms) for data packet transmission across the infrastructure.',
+            
+            # Aerospace
+            'Avionics Metric': 'Mission-critical flight system telemetry for aircraft health and navigational precision.',
+            'Altitude': 'Vertical positioning data (Above Mean Sea Level) for flight path management and air safety.',
+            'Thrust': 'Propulsion performance metric for aerospace vehicle acceleration and flight envelope monitoring.',
+            'Airspeed': 'Velocity of the aircraft relative to the surrounding air, critical for aerodynamic stability.',
+            'Phase of Flight': 'Current operational stage (Takeoff, Cruise, Landing) determining system logic and pilot procedures.',
+            
+            # Manufacturing & Industrial
+            'Equipment Effectiveness (OEE)': 'Key performance indicator (Overall Equipment Effectiveness) measuring availability, performance, and quality.',
+            'ABC Classification': 'Inventory categorization technique based on material value and production criticality.',
+            'Work Center': 'Core functional production unit where specific manufacturing operations are performed.',
+            'Lot/Batch Traceability': 'Unique production run identifier ensuring end-to-end material and quality traceability.',
+            'Cycle Time': 'The total time required to complete a single manufacturing operation or process step.',
+            
+            # Blockchain & Web3
+            'Blockchain Address': 'Unique cryptographic public key used for ownership identification and value transfer.',
+            'Transaction Hash': 'Immutable cryptographic fingerprint for a processed record in the distributed ledger.',
+            'Network Fee (Gas)': 'Computational effort cost required to execute a state transition on the blockchain.',
+            'Sequence Nonce': 'Incremental counter preventing transaction replay and ensuring execution order.',
+            'Chain Height': 'Synchronized ledger position representing the sequence of blocks in the network.'
+        }
+
     def analyze_column(self, column_name: str, data_type: str, table_name: str = "", 
-                      sample_values: List[str] = None, relationships: List[Dict] = None) -> ColumnContext:
+                      sample_values: List[str] = None, relationships: List[Dict] = None,
+                      inferred_type: str = None) -> ColumnContext:
         """
         Comprehensive column analysis using universal pattern recognition
         """
@@ -538,6 +704,19 @@ class UniversalPatternEngine:
         # Generate final description and business meaning
         description = self._generate_description(best_match, column_name, table_name, type_context)
         business_meaning = self._generate_business_meaning(best_match, column_name, table_name, relationship_context)
+        
+        # Override with rich inferred context if available
+        if inferred_type:
+            rich_meaning = self.rich_business_meanings.get(inferred_type)
+            if rich_meaning:
+                business_meaning = rich_meaning
+                description = f"{inferred_type} - {description}"
+        
+        # Priority mapping for cryptic columns: Use type context if name is meaningless
+        is_cryptic = re.match(r'^c\d+$|^col\d+$|^attr\d+$|^f\d+$|^val\d+$|^field\d+$', column_name_lower)
+        if is_cryptic and not inferred_type and type_context:
+            business_meaning = f"Inferred {type_context}. {business_meaning}"
+            description = f"Cryptic field: {type_context}"
         
         # Determine domain
         domain = self._classify_domain(table_name, column_name, sample_values)
@@ -670,13 +849,34 @@ class UniversalPatternEngine:
     def _generate_business_meaning(self, match_context: Dict, column_name: str, 
                                  table_name: str, relationship_context: str) -> str:
         """
-        Generate business context and meaning
+        Generate dynamic business context and meaning
         """
         base_meaning = match_context.get('business', 'Business data element')
         
+        # If the meaning is generic, make it dynamic and diverse
+        generic_string = 'Business data element contributing to operational processes and decision-making'
+        if base_meaning == generic_string or base_meaning == 'Business data element':
+            # Format names for readability (e.g. attr_1 -> Attr 1)
+            display_name = column_name.replace('_', ' ').strip().title()
+            table_display = table_name.replace('_', ' ').strip().title() if table_name else "System"
+            
+            # Diverse phrasing templates
+            templates = [
+                f"Strategic {display_name} attribute within the {table_display} domain, supporting operational decision-making.",
+                f"Core {display_name} data point used for {table_display} record tracking and process analysis.",
+                f"Operational {display_name} metric essential for {table_display} business intelligence and reporting.",
+                f"Technical {display_name} element facilitating {table_display} data integration and workflow management.",
+                f"Functional {display_name} parameter contributing to the {table_display} lifecycle within the organization."
+            ]
+            # Use stable hash of column name for "random but consistent" variety
+            import hashlib
+            h = int(hashlib.md5(column_name.encode()).hexdigest(), 16)
+            base_meaning = templates[h % len(templates)]
+
         # Replace placeholders
         meaning = base_meaning.replace('{referenced_table}', self._infer_referenced_table(column_name))
         meaning = meaning.replace('{table}', table_name or 'system')
+        meaning = meaning.replace('{column_name}', column_name)
         
         # Add relationship context if available
         if relationship_context:

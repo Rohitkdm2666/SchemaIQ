@@ -7,11 +7,6 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 
-def _qident(name: str) -> str:
-    escaped = name.replace('"', '""')
-    return f'"{escaped}"'
-
-
 def _scalar(conn, sql: str, params: Optional[Dict[str, Any]] = None) -> Any:
     res = conn.execute(text(sql), params or {})
     return res.scalar()
@@ -20,7 +15,8 @@ def _scalar(conn, sql: str, params: Optional[Dict[str, Any]] = None) -> Any:
 def _safe_scalar(conn, sql: str, params: Optional[Dict[str, Any]] = None, default: Any = None) -> Any:
     try:
         return _scalar(conn, sql, params)
-    except Exception:
+    except Exception as e:
+        print(f"[profiler] Query failed: {sql} | Error: {e}")
         return default
 
 
@@ -28,6 +24,7 @@ def profile_database(
     engine: Engine,
     schema_payload: Dict[str, Any],
     *,
+    schema: Optional[str] = None,
     compute_distinct: bool = True,
     freshness_column_hints: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
@@ -38,6 +35,17 @@ def profile_database(
         "date",
         "dt",
     ]
+
+    preparer = engine.dialect.identifier_preparer
+    
+    def qident(name: str) -> str:
+        return preparer.quote(name)
+
+    def qtable(name: str, sch: Optional[str]) -> str:
+        t_quoted = preparer.quote(name)
+        if sch:
+            return f"{preparer.quote(sch)}.{t_quoted}"
+        return t_quoted
 
     tables_out: List[Dict[str, Any]] = []
     fk_orphans: List[Dict[str, Any]] = []
@@ -50,8 +58,8 @@ def profile_database(
             if not tname:
                 continue
 
-            table_ident = _qident(tname)
-            row_count_raw = _safe_scalar(conn, f"SELECT COUNT(*) FROM {table_ident}", default=0)
+            full_table_ident = qtable(tname, schema)
+            row_count_raw = _safe_scalar(conn, f"SELECT COUNT(*) FROM {full_table_ident}", default=0)
             row_count = int(row_count_raw or 0)
 
             col_stats: List[Dict[str, Any]] = []
@@ -62,10 +70,10 @@ def profile_database(
                 if not cname:
                     continue
 
-                col_ident = _qident(cname)
+                col_ident = qident(cname)
                 null_count_raw = _safe_scalar(
                     conn,
-                    f"SELECT SUM(CASE WHEN {col_ident} IS NULL THEN 1 ELSE 0 END) FROM {table_ident}",
+                    f"SELECT SUM(CASE WHEN {col_ident} IS NULL THEN 1 ELSE 0 END) FROM {full_table_ident}",
                     default=0,
                 )
                 null_count = int(null_count_raw or 0)
@@ -75,7 +83,7 @@ def profile_database(
                 if compute_distinct:
                     distinct_count_raw = _safe_scalar(
                         conn,
-                        f"SELECT COUNT(DISTINCT {col_ident}) FROM {table_ident}",
+                        f"SELECT COUNT(DISTINCT {col_ident}) FROM {full_table_ident}",
                         default=0,
                     )
                     distinct_count = int(distinct_count_raw or 0)
@@ -94,7 +102,7 @@ def profile_database(
                     ctype == "datetime"
                     or any(h in cname.lower() for h in freshness_column_hints)
                 ):
-                    max_val = _safe_scalar(conn, f"SELECT MAX({col_ident}) FROM {table_ident}")
+                    max_val = _safe_scalar(conn, f"SELECT MAX({col_ident}) FROM {full_table_ident}")
                     if max_val is not None:
                         max_str = str(max_val)
                         age_days: Optional[float] = None
@@ -123,19 +131,19 @@ def profile_database(
             )
 
         for t in tables:
-            from_table = t.get("name")
+            from_table_name = t.get("name")
             for fk in t.get("foreign_keys", []) or []:
                 from_col = fk.get("column")
                 ref = fk.get("references") or {}
-                to_table = ref.get("table")
+                to_table_name = ref.get("table")
                 to_col = ref.get("column")
-                if not (from_table and from_col and to_table and to_col):
+                if not (from_table_name and from_col and to_table_name and to_col):
                     continue
 
-                ft = _qident(from_table)
-                fc = _qident(from_col)
-                tt = _qident(to_table)
-                tc = _qident(to_col)
+                ft = qtable(from_table_name, schema)
+                fc = qident(from_col)
+                tt = qtable(to_table_name, schema)
+                tc = qident(to_col)
 
                 sql = (
                     f"SELECT COUNT(*) FROM {ft} "
@@ -146,9 +154,9 @@ def profile_database(
                 orphan_count = int(orphan_count_raw or 0)
                 fk_orphans.append(
                     {
-                        "from_table": from_table,
+                        "from_table": from_table_name,
                         "from_column": from_col,
-                        "to_table": to_table,
+                        "to_table": to_table_name,
                         "to_column": to_col,
                         "orphan_count": orphan_count,
                     }

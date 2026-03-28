@@ -1,11 +1,31 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 import { MetricCard, Panel, PanelHeader, PanelBody, Tag, Button, QualityBar } from '../components/ui.jsx'
 import { normalizeProfile, computeQualityMetrics } from '../utils/qualityMetrics.js'
+import {
+  Database,
+  List,
+  Network,
+  Activity,
+  Brain,
+  BarChart3,
+  Map,
+  MessageSquare,
+  CheckCircle2,
+  RefreshCw,
+  Circle,
+  Download
+} from 'lucide-react'
 
 const statusVariant = { done: 'done', running: 'run', idle: 'idle' }
-const statusLabel = { done: '✓ DONE', running: '⟳ RUNNING', idle: '○ IDLE' }
+const statusLabel = {
+  done: <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={10} /> DONE</span>,
+  running: <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><RefreshCw size={10} className="animate-spin" /> RUNNING</span>,
+  idle: <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Circle size={10} /> IDLE</span>
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -16,15 +36,15 @@ export default function Dashboard() {
   const [profileData, setProfileData] = useState(null)
   const [dictData, setDictData] = useState(null)
   const [agents, setAgents] = useState([
-    { emoji: '⛁', name: 'Schema Extraction', desc: 'Waiting...', status: 'idle' },
-    { emoji: '⬡', name: 'Relationship Mapping', desc: 'Waiting...', status: 'idle' },
-    { emoji: '📊', name: 'Data Profiling', desc: 'Waiting...', status: 'idle' },
-    { emoji: '🧠', name: 'Business Context', desc: 'Waiting...', status: 'idle' },
-    { emoji: '📖', name: 'Data Dictionary', desc: 'Waiting...', status: 'idle' },
-    { emoji: '🗺', name: 'Visualization', desc: 'Waiting...', status: 'idle' },
+    { icon: Database, name: 'Schema Discovery', desc: 'Waiting...', status: 'idle' },
+    { icon: BarChart3, name: 'Data Profiling', desc: 'Waiting...', status: 'idle' },
+    { icon: Brain, name: 'Business Context', desc: 'Waiting...', status: 'idle' },
+    { icon: Map, name: 'Structural Insights', desc: 'Waiting...', status: 'idle' },
   ])
   const [activity, setActivity] = useState([])
   const [totalRows, setTotalRows] = useState(0)
+  const [isExporting, setIsExporting] = useState(false)
+  const chartRef = useRef(null)
 
   const parseUrl = (url) => {
     if (!url) return { db: '' }
@@ -42,13 +62,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     const runAnalysis = async () => {
+      setProfileData(null)
+      setGraphData({ nodes: [], links: [] })
       try {
         // Step 1: Connection info
         const connRes = await fetch('http://localhost:8001/api/connection')
         const conn = await connRes.json()
         setConnInfo(conn)
+        if (conn.status !== 'connected') return;
 
-        // Step 2: Schema extraction
+        // Step 2: Schema Discovery
         setAgents(prev => prev.map((a, i) => i === 0 ? { ...a, status: 'running', desc: 'Extracting schema...' } : a))
         addActivity('#60a5fa', 'Starting schema extraction...')
 
@@ -60,21 +83,12 @@ export default function Dashboard() {
         setGraphData({ nodes, links, colsCount })
 
         setAgents(prev => prev.map((a, i) =>
-          i === 0 ? { ...a, status: 'done', desc: `${nodes.length} tables · ${colsCount} columns extracted` } :
-          i === 1 ? { ...a, status: 'running', desc: 'Mapping relationships...' } : a
+          i === 0 ? { ...a, status: 'done', desc: `${nodes.length} tables · ${colsCount} columns mapped` } :
+            i === 1 ? { ...a, status: 'running', desc: 'Profiling data quality...' } : a
         ))
         addActivity('#4ade80', `Schema extraction complete — ${nodes.length} tables, ${colsCount} columns mapped.`)
 
-        // Step 3: Relationship mapping (already in schema data)
-        setAgents(prev => prev.map((a, i) =>
-          i === 1 ? { ...a, status: 'done', desc: `${links.length} FK relationships detected` } :
-          i === 2 ? { ...a, status: 'running', desc: 'Profiling data quality...' } : a
-        ))
-        if (links.length > 0) {
-          addActivity('#4ade80', `FK relationships detected: ${links.length} connections mapped.`)
-        }
-
-        // Step 4: Data profiling
+        // Step 3: Data Profiling
         const profileRes = await fetch('http://localhost:8001/api/profile')
         const profile = normalizeProfile(await profileRes.json())
         setProfileData(profile)
@@ -82,41 +96,31 @@ export default function Dashboard() {
         const rows = (profile.tables || []).reduce((s, t) => s + (t.row_count || 0), 0)
         setTotalRows(rows)
 
-        // Generate activity from profiling
-        const highNullCols = (profile.tables || []).flatMap(t =>
-          (t.columns || []).filter(c => c.null_percent > 30).map(c => ({ table: t.name, col: c.name, pct: c.null_percent }))
-        )
-        highNullCols.slice(0, 2).forEach(c => {
-          addActivity('#facc15', `High null rate in ${c.table}.${c.col} — ${c.pct.toFixed(1)}% null.`)
-        })
-
-        const orphans = (profile.fk_orphans || []).filter(o => o.orphan_count > 0)
-        if (orphans.length > 0) {
-          orphans.slice(0, 2).forEach(o => {
-            addActivity('#f87171', `FK orphans: ${o.from_table}.${o.from_column} → ${o.to_table} has ${o.orphan_count} orphaned rows.`)
-          })
-        } else if ((profile.fk_orphans || []).length > 0) {
-          addActivity('#4ade80', `FK integrity check passed — 0 orphaned rows across ${profile.fk_orphans.length} relationships.`)
-        }
-
         setAgents(prev => prev.map((a, i) =>
-          i === 2 ? { ...a, status: 'done', desc: `${rows.toLocaleString()} rows profiled across ${(profile.tables || []).length} tables` } :
-          i === 3 ? { ...a, status: 'running', desc: 'Generating business context...' } : a
+          i === 1 ? { ...a, status: 'done', desc: `${rows.toLocaleString()} rows profiled across ${(profile.tables || []).length} tables` } :
+            i === 2 ? { ...a, status: 'running', desc: 'Generating business context...' } : a
         ))
         addActivity('#4ade80', `Data profiling complete — ${rows.toLocaleString()} total rows analyzed.`)
 
-        // Step 5: AI Dictionary (business context + data dictionary)
+        // Step 4: Business Context
         const dictRes = await fetch('http://localhost:8001/api/dictionary/quick')
         const dict = await dictRes.json()
         setDictData(dict)
 
         setAgents(prev => prev.map((a, i) =>
-          i === 3 ? { ...a, status: 'done', desc: `Domain: ${dict.domain_analysis?.primary_domain || 'analyzed'}` } :
-          i === 4 ? { ...a, status: 'done', desc: `${Object.keys(dict.tables || {}).length} table entries generated` } :
-          i === 5 ? { ...a, status: 'done', desc: 'ER diagram ready' } : a
+          i === 2 ? { ...a, status: 'done', desc: `Domain: ${dict.domain_analysis?.primary_domain || 'analyzed'}` } :
+            i === 3 ? { ...a, status: 'running', desc: 'Structural analysis...' } : a
         ))
         addActivity('#60a5fa', `Business context generated — domain: ${dict.domain_analysis?.primary_domain || 'general'}.`)
-        addActivity('#4ade80', `AI Data Dictionary generated — ${dict.total_tables || 0} tables documented.`)
+
+        // Step 5: Structural Insights
+        const insightsRes = await fetch('http://localhost:8001/api/insights')
+        const insights = await insightsRes.json()
+
+        setAgents(prev => prev.map((a, i) =>
+          i === 3 ? { ...a, status: 'done', desc: `${insights.niche_columns?.length || 0} patterns detected` } : a
+        ))
+        addActivity('#4ade80', `Structural insights complete — architectural narrative generated.`)
 
       } catch (err) {
         console.error('Dashboard analysis error:', err)
@@ -125,7 +129,7 @@ export default function Dashboard() {
     }
 
     runAnalysis()
-  }, [])
+  }, [connInfo.url]) // Trigger analysis when connection URL changes
 
   // Animate quality ring when profile data arrives
   useEffect(() => {
@@ -144,9 +148,92 @@ export default function Dashboard() {
 
   // Build row count chart from profile data
   const rowCountChart = profileData ? (profileData.tables || []).map(t => ({
-    name: t.name.length > 14 ? t.name.slice(0, 14) + '…' : t.name,
-    rows: t.row_count || 0,
+    name: t.name?.length > 14 ? t.name.slice(0, 14) + '…' : (t.name || 'unknown'),
+    rows: Number(t.row_count ?? t.rows ?? t.count ?? 0),
   })).sort((a, b) => b.rows - a.rows).slice(0, 6) : []
+
+  // ── Agnostic Insights Calculations ──────────────────────────
+  const typeDistribution = useMemo(() => {
+    const counts = { string: 0, numeric: 0, temporal: 0, boolean: 0, other: 0 }
+    graphData.nodes.forEach(t => {
+      (t.columns || []).forEach(c => {
+        const type = (c.type || '').toLowerCase()
+        if (type.includes('char') || type.includes('text') || type.includes('string')) counts.string++
+        else if (type.includes('int') || type.includes('num') || type.includes('double') || type.includes('float') || type.includes('decimal')) counts.numeric++
+        else if (type.includes('date') || type.includes('time') || type.includes('timestamp')) counts.temporal++
+        else if (type.includes('bool') || type.includes('bit')) counts.boolean++
+        else counts.other++
+      })
+    })
+    return Object.entries(counts).map(([name, value]) => ({ 
+      name: name.charAt(0).toUpperCase() + name.slice(1), 
+      value 
+    })).filter(d => d.value > 0)
+  }, [graphData.nodes])
+
+  const radarData = useMemo(() => {
+    return (quality.dims || []).map(d => ({ subject: d.label, A: d.pct, fullMark: 100 }))
+  }, [quality.dims])
+
+  const COLORS = ['#c0392b', '#2980b9', '#f1c40f', '#27ae60', '#8e44ad']
+
+  // ── PDF Export Handler ──────────────────────────────────────────
+  const handleExportPDF = async () => {
+    if (!chartRef.current || isExporting) return
+    setIsExporting(true)
+    try {
+      const canvas = await html2canvas(chartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        logging: false,
+        useCORS: true
+      })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+
+      // Light Header Bar
+      pdf.setFillColor(248, 250, 252)
+      pdf.rect(0, 0, 210, 40, 'F')
+      pdf.setDrawColor(226, 232, 240)
+      pdf.line(0, 40, 210, 40)
+
+      // Branded Header
+      pdf.setTextColor(192, 57, 43)
+      pdf.setFontSize(22)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('SchemaIQ', 20, 22)
+      pdf.setTextColor(51, 65, 85)
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('Data Intelligence Report', 20, 28)
+
+      // Metadata
+      pdf.setTextColor(30, 41, 59)
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(`Database: ${dbName}`, 20, 55)
+      pdf.setTextColor(100, 116, 139)
+      pdf.setFontSize(9)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, 60)
+      pdf.line(20, 68, 190, 68)
+
+      // The Chart
+      const imgWidth = 170
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      pdf.addImage(imgData, 'PNG', 20, 80, imgWidth, imgHeight)
+
+      // Footer
+      pdf.setTextColor(148, 163, 184)
+      pdf.setFontSize(8)
+      pdf.text('© 2026 SchemaIQ Platform · Autonomous Schema Control', 105, 285, { align: 'center' })
+      pdf.save(`SchemaIQ_Row_Distribution_${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (err) {
+      console.error('PDF Export failed:', err)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   return (
     <div>
@@ -162,63 +249,96 @@ export default function Dashboard() {
 
       {/* Metric cards — 4 columns */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 20 }}>
-        <MetricCard icon="⛁" label="Total Tables" value={graphData.nodes.length || '0'} delta="▲ All analyzed" cardColor="#27ae60" delay={50} />
-        <MetricCard icon="≡" label="Total Columns" value={graphData.colsCount || '0'} delta={`${totalRows.toLocaleString()} total rows`} cardColor="#2980b9" delay={100} />
-        <MetricCard icon="⬡" label="FK Relationships" value={graphData.links.length || '0'} delta="◉ ER diagram ready" deltaColor="text-yellow-400" cardColor="#f39c12" delay={150} />
-        <MetricCard icon="◎" label="Data Quality Score" value={profileData ? `${quality.overall}%` : '...'} delta={profileData ? qualityDelta : 'Analyzing...'} cardColor="#c0392b" delay={200} />
+        <MetricCard icon={<Database size={22} />} label="Total Tables" value={graphData.nodes.length || '0'} delta="▲ All analyzed" cardColor="#27ae60" delay={50} />
+        <MetricCard icon={<List size={22} />} label="Total Columns" value={graphData.colsCount || '0'} delta={`${totalRows.toLocaleString()} total rows`} cardColor="#2980b9" delay={100} />
+        <MetricCard icon={<Network size={22} />} label="FK Relationships" value={graphData.links.length || '0'} delta="◉ ER diagram ready" deltaColor="text-yellow-400" cardColor="#f39c12" delay={150} />
+        <MetricCard icon={<Activity size={22} />} label="Data Quality Score" value={profileData ? `${quality.overall}%` : '...'} delta={profileData ? qualityDelta : 'Analyzing...'} cardColor="#c0392b" delay={200} />
       </div>
 
-      {/* Row 1 — Row Distribution chart + Agents */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14, marginBottom: 14 }}>
+      {/* Row 1 — Row Distribution + Composition + Agents */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
         <Panel className="animate-fade-up delay-200">
-          <PanelHeader title="Table Row Distribution" subtitle={`Live data from ${graphData.nodes.length} tables`}>
-            <Button variant="ghost">Export</Button>
-          </PanelHeader>
+          <PanelHeader title="Row Distribution" />
           <PanelBody>
-            {rowCountChart.length > 0 ? (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={rowCountChart} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={120}
-                    tick={{ fill: '#666680', fontSize: 9, fontFamily: 'Space Mono' }}
-                    axisLine={false} tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 8, fontFamily: 'Space Mono', fontSize: 11 }}
-                    itemStyle={{ color: '#e8e8f0' }} labelStyle={{ color: '#f0828a' }}
-                    formatter={v => [v.toLocaleString(), 'Rows']}
-                  />
-                  <Bar dataKey="rows" fill="#c0392b" radius={[0, 3, 3, 0]} />
-                </BarChart>
+            <div ref={chartRef} style={{ background: '#0f0f17' }}>
+              {rowCountChart.length > 0 ? (
+                <ResponsiveContainer width="100%" height={160}>
+                  <BarChart data={rowCountChart} layout="vertical" margin={{ top: 0, right: 10, bottom: 0, left: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" width={80}
+                      tick={{ fill: '#666680', fontSize: 8, fontFamily: 'Space Mono' }}
+                      axisLine={false} tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 8, fontFamily: 'Space Mono', fontSize: 10 }}
+                      itemStyle={{ color: '#e8e8f0' }} labelStyle={{ color: '#f0828a' }}
+                      formatter={v => [v.toLocaleString(), 'Rows']}
+                    />
+                    <Bar dataKey="rows" fill="#c0392b" radius={[0, 3, 3, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444458', fontFamily: 'Space Mono', fontSize: 11 }}>
+                  Analyzing Schema...
+                </div>
+              )}
+            </div>
+          </PanelBody>
+        </Panel>
+
+        {/* Schema Composition Donut */}
+        <Panel className="animate-fade-up delay-250">
+          <PanelHeader title="Schema Composition" />
+          <PanelBody>
+            <div style={{ display: 'flex', alignItems: 'center', height: 160 }}>
+              <ResponsiveContainer width="50%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={typeDistribution}
+                    innerRadius={32}
+                    outerRadius={50}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {typeDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444458', fontFamily: 'Space Mono', fontSize: 12 }}>
-                Loading profile data...
+              <div style={{ width: '50%', paddingLeft: 10 }}>
+                {typeDistribution.map((d, i) => (
+                  <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS[i % COLORS.length] }} />
+                    <span style={{ fontSize: 10, color: '#666680', fontFamily: 'Space Mono' }}>{d.name} ({d.value})</span>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
           </PanelBody>
         </Panel>
 
         <Panel className="animate-fade-up delay-250">
-          <PanelHeader title="AI Agents — Status">
-            <Button variant="ghost" onClick={() => navigate('/agents')}>Full View →</Button>
+          <PanelHeader title="Agent Pipelines">
+            <Button variant="ghost" onClick={() => navigate('/agents')}>View All →</Button>
           </PanelHeader>
           <PanelBody>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto', paddingRight: 4 }}>
               {agents.map(a => (
                 <div key={a.name} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
+                  display: 'flex', alignItems: 'center', gap: 10,
                   background: '#16161f', border: '1px solid #1e1e2e',
-                  borderRadius: 8, padding: '8px 14px',
+                  borderRadius: 8, padding: '6px 10px',
                 }}>
-                  <div style={{ fontSize: 16, width: 32, height: 32, background: 'rgba(192,57,43,0.1)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {a.emoji}
+                  <div style={{ width: 26, height: 26, background: 'rgba(192,57,43,0.1)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <a.icon size={13} color="#c0392b" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'Space Mono', fontSize: 11, fontWeight: 700, color: '#e8e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</div>
-                    <div style={{ fontSize: 10, color: '#666680', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.desc}</div>
+                    <div style={{ fontFamily: 'Space Mono', fontSize: 10, fontWeight: 700, color: '#e8e8f0', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</div>
                   </div>
-                  <Tag variant={statusVariant[a.status]}>{statusLabel[a.status]}</Tag>
+                  <Tag variant={statusVariant[a.status]}>
+                    <span style={{ fontSize: 8 }}>{a.status.toUpperCase()}</span>
+                  </Tag>
                 </div>
               ))}
             </div>
@@ -226,70 +346,60 @@ export default function Dashboard() {
         </Panel>
       </div>
 
-      {/* Row 2 — Null Rate Analysis + Quality + Activity */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
-
-        {/* Per-Table Quality */}
+      {/* Row 2 — Radar + Completeness + Activity */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
+        
+        {/* Architecture Radar */}
         <Panel className="animate-fade-up delay-300">
-          <PanelHeader title="Table Completeness" />
+          <PanelHeader title="Architecture Integrity" />
           <PanelBody>
-            {profileData ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {quality.perTable.map(t => (
-                  <QualityBar key={t.name} label={t.name} pct={t.score} color={t.color} />
-                ))}
-              </div>
-            ) : (
-              <div style={{ color: '#444458', fontFamily: 'Space Mono', fontSize: 12, textAlign: 'center', padding: 20 }}>Loading...</div>
-            )}
+            <div style={{ display: 'flex', justifyContent: 'center', height: 180 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="60%" data={radarData}>
+                  <PolarGrid stroke="#1e1e2e" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#666680', fontSize: 8, fontFamily: 'Space Mono' }} />
+                  <Radar name="Quality" dataKey="A" stroke="#c0392b" fill="#c0392b" fillOpacity={0.4} />
+                  <Tooltip contentStyle={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 8, fontFamily: 'Space Mono', fontSize: 10 }} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
           </PanelBody>
         </Panel>
 
-        {/* Quality */}
+        {/* Per-Table Quality */}
         <Panel className="animate-fade-up delay-300">
-          <PanelHeader title="Data Quality Score">
-            <Button variant="ghost" onClick={() => navigate('/quality')}>Report →</Button>
-          </PanelHeader>
+          <PanelHeader title="Schema Completeness" />
           <PanelBody>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-              <div style={{ position: 'relative', width: 100, height: 100 }}>
-                <svg viewBox="0 0 100 100" width="100" height="100" style={{ transform: 'rotate(-90deg)' }}>
-                  <circle fill="none" stroke="#1e1e2e" strokeWidth="7" cx="50" cy="50" r="43" />
-                  <circle fill="none" stroke={qualityColor} strokeWidth="7" cx="50" cy="50" r="43"
-                    strokeLinecap="round" strokeDasharray="270.2" strokeDashoffset={ringOffset}
-                    style={{ transition: 'stroke-dashoffset 1.2s ease' }}
-                  />
-                </svg>
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: 'Space Mono', fontSize: 20, fontWeight: 700, color: qualityColor }}>{profileData ? quality.overall : '...'}</span>
-                  <span style={{ fontFamily: 'Space Mono', fontSize: 9, color: '#666680' }}>%</span>
+            <div style={{ maxHeight: 180, overflowY: 'auto', paddingRight: 4 }}>
+              {profileData ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {quality.perTable.map(t => (
+                    <QualityBar key={t.name} label={t.name} pct={t.score} color={t.color} />
+                  ))}
                 </div>
-              </div>
+              ) : (
+                <div style={{ color: '#444458', fontFamily: 'Space Mono', fontSize: 12, textAlign: 'center', padding: 20 }}>Profiling...</div>
+              )}
             </div>
-            <QualityBar label="Completeness" pct={quality.completeness} />
-            <QualityBar label="Consistency" pct={quality.consistency} />
-            <QualityBar label="Validity" pct={quality.validity} color="#f39c12" textColor="#f39c12" />
-            <QualityBar label="FK Integrity" pct={quality.fkIntegrity} />
-            <QualityBar label="Uniqueness" pct={quality.uniqueness} color="#3498db" textColor="#3498db" />
           </PanelBody>
         </Panel>
 
         {/* Activity */}
         <Panel className="animate-fade-up delay-350">
-          <PanelHeader title="Live Activity Feed" />
+          <PanelHeader title="Intelligence Feed" />
           <PanelBody>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ maxHeight: 180, overflowY: 'auto', paddingRight: 4 }}>
               {activity.length > 0 ? activity.map((a, i) => (
-                <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: i < activity.length - 1 ? '1px solid rgba(30,30,46,0.6)' : 'none' }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: a.color, marginTop: 5, flexShrink: 0 }} />
+                <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < activity.length - 1 ? '1px solid rgba(30,30,46,0.6)' : 'none' }}>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: a.color, marginTop: 4, flexShrink: 0 }} />
                   <div>
-                    <p style={{ fontSize: 11, color: '#b0b0c8', lineHeight: 1.5 }}>{a.text}</p>
-                    <p style={{ fontFamily: 'Space Mono', fontSize: 9, color: '#444458', marginTop: 3 }}>{a.time}</p>
+                    <p style={{ fontSize: 10, color: '#b0b0c8', lineHeight: 1.4 }}>{a.text}</p>
+                    <p style={{ fontFamily: 'Space Mono', fontSize: 8, color: '#444458', marginTop: 2 }}>{a.time}</p>
                   </div>
                 </div>
               )) : (
                 <div style={{ color: '#444458', fontFamily: 'Space Mono', fontSize: 12, textAlign: 'center', padding: 20 }}>
-                  Waiting for analysis...
+                  Observing...
                 </div>
               )}
             </div>
@@ -311,7 +421,7 @@ export default function Dashboard() {
         onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(192,57,43,0.6)'}
         onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(192,57,43,0.3)'}
       >
-        <div style={{ fontSize: 24 }}>💬</div>
+        <div style={{ color: '#f0828a' }}><MessageSquare size={24} /></div>
         <div>
           <div style={{ fontFamily: 'Space Mono', fontSize: 13, fontWeight: 700, color: '#f0828a' }}>
             QueryBot — AI Database Assistant

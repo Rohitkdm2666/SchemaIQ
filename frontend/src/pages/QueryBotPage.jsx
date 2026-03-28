@@ -5,6 +5,11 @@ import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts'
+import {
+  MessageSquare, Trash2, SendHorizontal, Bot, User,
+  ChevronDown, ChevronRight, Sparkles, Lightbulb,
+  AlertTriangle, RefreshCw, RefreshCcw, Info
+} from 'lucide-react'
 
 const DEFAULT_SUGGESTIONS = [
   'How many orders were delivered in March 2018?',
@@ -32,7 +37,14 @@ function Md({ text }) {
 function TypingIndicator() {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
-      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#c0392b,#f0828a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🧠</div>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%',
+        background: 'linear-gradient(135deg,#c0392b,#f0828a)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0
+      }}>
+        <Bot size={16} color="#fff" />
+      </div>
       <div style={{ background: '#16161f', border: '1px solid #1e1e2e', borderRadius: '18px 18px 18px 4px', padding: '14px 18px' }}>
         <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
           {[0, 1, 2].map(i => (
@@ -55,7 +67,7 @@ function SqlBlock({ sql }) {
         fontSize: 10, color: '#666680', cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: 6,
       }}>
-        {open ? '▾' : '▸'} {open ? 'Hide' : 'Show'} SQL
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />} {open ? 'Hide' : 'Show'} SQL
       </button>
       {open && (
         <pre style={{
@@ -181,7 +193,14 @@ function AssistantBubble({ response, time }) {
 
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
-      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#c0392b,#f0828a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0, marginBottom: 20 }}>🧠</div>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%',
+        background: 'linear-gradient(135deg,#c0392b,#f0828a)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0, marginBottom: 20
+      }}>
+        <Bot size={16} color="#fff" />
+      </div>
       <div style={{ maxWidth: '88%' }}>
         <div style={{ background: '#16161f', border: '1px solid #1e1e2e', borderRadius: '18px 18px 18px 4px', padding: '16px 20px' }}>
 
@@ -192,8 +211,9 @@ function AssistantBubble({ response, time }) {
 
           {/* Insight */}
           {r.insight && (
-            <div style={{ marginTop: 10, background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.2)', borderRadius: 8, padding: '9px 14px', fontSize: 12, color: '#b0b0c8', lineHeight: 1.6 }}>
-              💡 {r.insight}
+            <div style={{ marginTop: 10, background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.2)', borderRadius: 8, padding: '9px 14px', fontSize: 12, color: '#b0b0c8', lineHeight: 1.6, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <Lightbulb size={14} color="#f0828a" style={{ marginTop: 2, flexShrink: 0 }} />
+              <span>{r.insight}</span>
             </div>
           )}
 
@@ -243,7 +263,7 @@ function HealthBanner({ health }) {
 
   return (
     <div style={{ background: 'rgba(243,156,18,0.1)', border: '1px solid rgba(243,156,18,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-      <span style={{ fontSize: 16 }}>⚠️</span>
+      <AlertTriangle size={18} color="#f39c12" style={{ flexShrink: 0 }} />
       <div>
         <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, fontWeight: 700, color: '#f39c12', marginBottom: 4 }}>Backend not fully ready</div>
         {issues.map((issue, i) => (
@@ -264,7 +284,7 @@ export default function QueryBotPage() {
       id: 0, role: 'assistant', time: now(),
       response: {
         type: 'help',
-        text: "👋 Hi! I'm **QueryBot**.\n\nAsk me anything in plain English and I'll write the SQL, run it, and explain the results.",
+        text: "Hi! I'm **QueryBot**.\n\nAsk me anything in plain English and I'll write the SQL, run it, and explain the results.",
       }
     }]
   })
@@ -320,7 +340,7 @@ export default function QueryBotPage() {
     localStorage.removeItem('schemaiq_chat_history')
     setMessages([{
       id: 0, role: 'assistant', time: now(),
-      response: { type: 'text', text: '🔄 Chat cleared. Ask me anything about the connected database.' }
+      response: { type: 'text', text: 'Chat cleared. Ask me anything about the connected database.' }
     }])
   }
 
@@ -328,15 +348,23 @@ export default function QueryBotPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px - 64px)', maxHeight: 900 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div>
-          <h1 style={{ fontFamily: "'Space Mono',monospace", fontSize: 22, fontWeight: 700, color: '#e8e8f0', margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
-            💬 QueryBot
-            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, background: health?.ready ? 'rgba(39,174,96,0.15)' : 'rgba(243,156,18,0.15)', color: health?.ready ? '#27ae60' : '#f39c12', border: `1px solid ${health?.ready ? 'rgba(39,174,96,0.3)' : 'rgba(243,156,18,0.3)'}`, padding: '3px 10px', borderRadius: 20 }}>
-              {health?.ready ? '● LIVE' : health === null ? '◌ Checking…' : '⚠ Setup needed'}
-            </span>
-          </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, background: 'rgba(192,57,43,0.1)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(192,57,43,0.2)' }}>
+            <MessageSquare size={20} color="#c0392b" />
+          </div>
+          <div>
+            <h1 style={{ fontFamily: "'Space Mono',monospace", fontSize: 22, fontWeight: 700, color: '#e8e8f0', margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+              QueryBot
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, background: health?.ready ? 'rgba(39,174,96,0.15)' : 'rgba(243,156,18,0.15)', color: health?.ready ? '#27ae60' : '#f39c12', border: `1px solid ${health?.ready ? 'rgba(39,174,96,0.3)' : 'rgba(243,156,18,0.3)'}`, padding: '3px 10px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: health?.ready ? '#27ae60' : '#f39c12' }} />
+                {health?.ready ? 'LIVE' : health === null ? 'Checking…' : 'Setup needed'}
+              </span>
+            </h1>
+          </div>
         </div>
-        <button onClick={clear} style={{ background: '#16161f', border: '1px solid #1e1e2e', borderRadius: 8, padding: '8px 16px', fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#b0b0c8', cursor: 'pointer' }}>🗑 Clear</button>
+        <button onClick={clear} style={{ background: '#16161f', border: '1px solid #1e1e2e', borderRadius: 8, padding: '8px 16px', fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#b0b0c8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Trash2 size={14} /> Clear
+        </button>
       </div>
 
       <HealthBanner health={health} />
@@ -377,13 +405,17 @@ export default function QueryBotPage() {
                 onClick={() => send(input)}
                 disabled={!input.trim() || typing}
                 style={{ width: 44, height: 44, background: input.trim() && !typing ? '#c0392b' : '#16161f', border: 'none', borderRadius: 12, color: '#fff', fontSize: 18, cursor: input.trim() && !typing ? 'pointer' : 'not-allowed', opacity: input.trim() && !typing ? 1 : 0.4, transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >↑</button>
+              >
+                <SendHorizontal size={20} />
+              </button>
             </div>
 
             {/* Wrapped Suggestions (Inline below input) */}
-            <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               {loadingSuggestions ? (
-                <div style={{ padding: '4px 12px', color: '#666680', fontSize: 11, fontFamily: "'Space Mono',monospace" }}>⟳ Generating hints...</div>
+                <div style={{ padding: '4px 12px', color: '#666680', fontSize: 11, fontFamily: "'Space Mono',monospace", display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <RefreshCw size={12} className="animate-spin" /> Generating hints...
+                </div>
               ) : (
                 suggestions.map((s, i) => (
                   <button key={i} onClick={() => send(s)} disabled={typing}

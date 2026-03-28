@@ -159,23 +159,26 @@ export default function ERDiagram({ nodes = [], links = [], onNodeClick, svgRef:
         if (onNodeClick) onNodeClick(d)
       })
 
-    // Drop shadow
+    // Drop shadow rect
     nodeEl.append('rect').attr('class', 'shadow-rect')
       .attr('width', NODE_W).attr('rx', 12).attr('ry', 12)
       .attr('fill', '#111118').style('filter', 'url(#shadow)')
-      .attr('stroke', d => d.color).attr('stroke-width', 2)
+      .attr('stroke', d => d.color || '#c0392b').attr('stroke-width', 2)
+      .attr('height', d => getNodeH(d, expanded)) // Set initial height immediately
 
     // Header BG
     nodeEl.append('path').attr('class', 'header-bg')
       .attr('d', `M0,12 a12,12 0 0 1 12,-12 h${NODE_W - 24} a12,12 0 0 1 12,12 v${HEADER_H - 12} h-${NODE_W} Z`)
       .attr('fill', d => d.color).attr('opacity', 0.15)
-    nodeEl.append('rect').attr('width', NODE_W).attr('height', 3)
-      .attr('rx', 2).attr('fill', d => d.color)
-
     // Title
     nodeEl.append('text').attr('x', 14).attr('y', HEADER_H - 12)
       .attr('font-family', 'Space Mono, monospace').attr('font-size', 13).attr('font-weight', 700)
       .attr('fill', '#e8e8f0').text(d => d.label)
+
+    // Header separator line
+    nodeEl.append('line').attr('class', 'header-sep')
+      .attr('x1', 0).attr('y1', HEADER_H).attr('x2', NODE_W).attr('y2', HEADER_H)
+      .attr('stroke', d => d.color || '#333').attr('stroke-width', 1).attr('opacity', 0.25)
 
     // Rows text indicator
     nodeEl.append('text').attr('x', NODE_W - 32).attr('y', HEADER_H - 12)
@@ -262,7 +265,9 @@ export default function ERDiagram({ nodes = [], links = [], onNodeClick, svgRef:
     const { nodeEl, linkLine, linkLabel, sim } = elementsRef.current
 
     // Update heights
-    nodeEl.selectAll('.shadow-rect').transition().duration(250).attr('height', d => getNodeH(d, expanded))
+    nodeEl.selectAll('.shadow-rect').attr('height', d => getNodeH(d, expanded))
+      .attr('stroke', d => selected === d.id ? '#ffffff' : (d.color || '#c0392b'))
+      .attr('stroke-width', d => selected === d.id ? 3 : 2)
 
     // Update expander icons
     nodeEl.selectAll('.exp-icon').text(d => expanded[d.id] ? '−' : '+')
@@ -277,16 +282,28 @@ export default function ERDiagram({ nodes = [], links = [], onNodeClick, svgRef:
       const rows = gCols.selectAll('g.field-row').data(toShow, t => t)
 
       const rEnter = rows.enter().append('g').attr('class', 'field-row')
-        .attr('transform', (t, i) => `translate(14, ${HEADER_H + 16 + i * ROW_H})`)
+        .attr('transform', (t, i) => `translate(14, ${HEADER_H + i * ROW_H})`)
         .style('opacity', 0)
 
       rEnter.append('text').attr('font-family', 'Space Mono, monospace').attr('font-size', 11)
-        .attr('fill', t => t.includes('(PK)') ? '#27ae60' : t.includes('(FK)') ? '#3498db' : '#a0a0b8')
+        .attr('x', 14).attr('y', 14) // Adjusted for row alignment
         .text(t => (t.includes('(PK)') ? '🔑 ' : t.includes('(FK)') ? '🔗 ' : '   ') + t.replace(/ \(PK\)|\(FK\)/g, '').slice(0, 21))
 
-      rEnter.merge(rows).transition().duration(250)
-        .attr('transform', (t, i) => `translate(14, ${HEADER_H + 16 + i * ROW_H})`)
+      // Ensure text is correctly placed and colored
+      const rUpdate = rows.merge(rEnter).transition().duration(250)
+        .attr('transform', (t, i) => `translate(14, ${HEADER_H + i * ROW_H + 4})`)
         .style('opacity', 1)
+      
+      rUpdate.selectAll('text').attr('fill', t => t.includes('(PK)') ? '#27ae60' : t.includes('(FK)') ? '#3498db' : '#a0a0b8')
+
+      // Ensure line is present or updated
+      rows.merge(rEnter).each(function() {
+        if (d3.select(this).selectAll('line.row-sep').empty()) {
+          d3.select(this).append('line').attr('class', 'row-sep')
+            .attr('x1', -14).attr('y1', ROW_H).attr('x2', NODE_W - 14).attr('y2', ROW_H)
+        }
+      }).selectAll('line.row-sep')
+        .attr('stroke', d.color || '#333').attr('stroke-width', 1).attr('opacity', 0.3)
 
       rows.exit().transition().duration(150).style('opacity', 0).remove()
 
@@ -332,9 +349,9 @@ export default function ERDiagram({ nodes = [], links = [], onNodeClick, svgRef:
       return 1
     })
 
-    // Highlight selected node stroke
-    nodeEl.selectAll('.shadow-rect').transition().duration(200)
-      .attr('stroke', d => selected === d.id ? '#ffffff' : d.color)
+    // Highlight selected node stroke - direct set for visual permanence
+    nodeEl.selectAll('.shadow-rect')
+      .attr('stroke', d => selected === d.id ? '#ffffff' : (d.color || '#c0392b'))
       .attr('stroke-width', d => selected === d.id ? 3 : 2)
 
     linkLine.style('opacity', d => {

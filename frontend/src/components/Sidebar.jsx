@@ -1,31 +1,45 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { 
+  LayoutDashboard, 
+  Database, 
+  Search, 
+  Network, 
+  BookOpen, 
+  ShieldCheck, 
+  Cpu, 
+  Zap, 
+  MessageSquare, 
+  Settings,
+  LogOut,
+  Activity
+} from 'lucide-react'
 
 const NAV = [
   {
     section: 'Overview', items: [
-      { icon: '⊞', label: 'Dashboard', to: '/' },
-      { icon: '⛁', label: 'DB Connections', to: '/connections' },
+      { icon: LayoutDashboard, label: 'Dashboard', to: '/' },
+      { icon: Database, label: 'DB Connections', to: '/connections' },
     ]
   },
   {
     section: 'Analysis', items: [
-      { icon: '◈', label: 'Schema Explorer', to: '/schema' },
-      { icon: '⬡', label: 'ER Diagram', to: '/er-diagram' },
-      { icon: '≡', label: 'Data Dictionary', to: '/dictionary' },
+      { icon: Search, label: 'Schema Explorer', to: '/schema' },
+      { icon: Network, label: 'ER Diagram', to: '/er-diagram' },
+      { icon: BookOpen, label: 'Data Dictionary', to: '/dictionary' },
     ]
   },
   {
     section: 'Intelligence', items: [
-      { icon: '◉', label: 'Data Quality', to: '/quality' },
-      { icon: '⬢', label: 'AI Agents', to: '/agents' },
-      { icon: '🧩', label: 'Insights', to: '/insights' },
-      { icon: '💬', label: 'QueryBot', to: '/querybot' },
+      { icon: ShieldCheck, label: 'Data Quality', to: '/quality' },
+      { icon: Cpu, label: 'AI Agents', to: '/agents' },
+      { icon: Zap, label: 'Insights', to: '/insights' },
+      { icon: MessageSquare, label: 'QueryBot', to: '/querybot' },
     ]
   },
   {
     section: 'System', items: [
-      { icon: '⚙', label: 'Settings', to: '/settings' },
+      { icon: Settings, label: 'Settings', to: '/settings' },
     ]
   },
 ]
@@ -51,10 +65,12 @@ export default function Sidebar() {
         <img
           src="/schemaiqlogo.png"
           alt="SchemaIQ Logo"
+          onClick={() => window.location.reload()}
           style={{
             width: 140, // Increased width to account for combined logo + text in image
             height: 'auto',
-            display: 'block'
+            display: 'block',
+            cursor: 'pointer'
           }}
         />
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, color: '#444458', marginTop: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
@@ -105,7 +121,9 @@ export default function Sidebar() {
                   }
                 }}
               >
-                <span style={{ fontSize: 15, width: 18, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 18, flexShrink: 0 }}>
+                  <item.icon size={18} />
+                </span>
                 <span>{item.label}</span>
               </NavLink>
             ))}
@@ -146,7 +164,9 @@ export default function Sidebar() {
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#444458', padding: 4 }}
               onMouseEnter={e => e.currentTarget.style.color = '#f0828a'}
               onMouseLeave={e => e.currentTarget.style.color = '#444458'}
-            >⏻</button>
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         )}
       </div>

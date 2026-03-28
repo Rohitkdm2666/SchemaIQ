@@ -1,5 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
-import { Panel, PanelHeader, PanelBody, Button, Tag, Spinner } from '../components/ui.jsx'
+import { Panel, PanelHeader, PanelBody, Button, Tag, Spinner, PageHeader } from '../components/ui.jsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { Download, RefreshCw, Lightbulb, Activity, Layers, Database } from 'lucide-react'
 
 const EMPTY_INSIGHTS = {
   overview_text: '',
@@ -7,31 +10,6 @@ const EMPTY_INSIGHTS = {
   niche_columns: [],
   alternate_methods: [],
 }
-
-const IconBulb = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 9 4c-3.1 0-5.5 2.5-5.5 5.5 0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5" />
-    <path d="M9 18h6" /><path d="M10 22h4" />
-  </svg>
-)
-
-const IconActivity = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-  </svg>
-)
-
-const IconDatabase = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-  </svg>
-)
-
-const IconLayers = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" />
-  </svg>
-)
 
 export default function InsightsPage() {
   const [loading, setLoading] = useState(true)
@@ -55,6 +33,104 @@ export default function InsightsPage() {
     }
   }
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF()
+    const timestamp = new Date().toLocaleString()
+    
+    // Header
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(22)
+    doc.setTextColor(192, 57, 43) // SchemaIQ Red
+    doc.text("SchemaIQ Architectural Insights", 14, 20)
+    
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(100)
+    doc.text(`Generated: ${timestamp} · SchemaIQ Autonomous IT Agent`, 14, 28)
+    
+    let currentY = 40
+
+    // Section 1: Narrative
+    doc.setFontSize(14)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(40)
+    doc.text("1. Schema Narrative", 14, currentY)
+    currentY += 8
+    
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(60)
+    const overviewLines = doc.splitTextToSize(insights.overview_text || 'No narrative available.', 180)
+    doc.text(overviewLines, 14, currentY)
+    currentY += (overviewLines.length * 5) + 12
+
+    // Section 2: Data Flow & Cardinality
+    if (currentY > 240) { doc.addPage(); currentY = 20; }
+    doc.setFontSize(14)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(40)
+    doc.text("2. Data Flow & Cardinality", 14, currentY)
+    currentY += 8
+    
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(60)
+    const relLines = doc.splitTextToSize(insights.table_relationships_text || 'No relationship data available.', 180)
+    doc.text(relLines, 14, currentY)
+    currentY += (relLines.length * 5) + 12
+
+    // Section 3: Scalability Optimization
+    if (currentY > 240) { doc.addPage(); currentY = 20; }
+    doc.setFontSize(14)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(40)
+    doc.text("3. Scalability Optimizations", 14, currentY)
+    currentY += 8
+    
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    if (insights.alternate_methods?.length > 0) {
+      insights.alternate_methods.forEach((method, i) => {
+        if (currentY > 270) { doc.addPage(); currentY = 20; }
+        doc.text(`• ${method}`, 14, currentY)
+        currentY += 6
+      })
+    } else {
+      doc.text("No specific optimizations identified.", 14, currentY)
+    }
+    currentY += 6
+
+    // Section 4: Signal Detection
+    if (currentY > 150) { doc.addPage(); currentY = 20; }
+    doc.setFontSize(14)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(40)
+    doc.text("4. High-Entropy Signal Detection", 14, currentY)
+    currentY += 8
+
+    const nicheData = (insights.niche_columns || []).map(item => [
+      `${item.table}.${item.column}`,
+      item.why_niche,
+      item.use_case
+    ])
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Signal Target (Table.Col)', 'Architectural Value', 'Analysis Goal']],
+      body: nicheData,
+      theme: 'grid',
+      headStyles: { fillColor: [192, 57, 43], fontStyle: 'bold', textColor: [255, 255, 255] },
+      styles: { fontSize: 8, cellPadding: 3, textColor: [60, 60, 60] },
+      columnStyles: {
+        0: { cellWidth: 40, fontStyle: 'bold' },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 70 }
+      }
+    })
+
+    doc.save(`SchemaIQ_Architectural_Insights_${new Date().getTime()}.pdf`)
+  }
+
   useEffect(() => {
     if (!hasLoaded.current) {
       loadInsights()
@@ -65,36 +141,17 @@ export default function InsightsPage() {
   return (
     <div className="animate-fade-in" style={{ paddingBottom: 40 }}>
       {/* Header Section */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        marginBottom: 32,
-        background: 'linear-gradient(90deg, #111118 0%, rgba(17,17,24,0) 100%)',
-        padding: '24px 0',
-        borderBottom: '1px solid rgba(30,30,46,0.5)'
-      }}>
-        <div>
-          <h1 style={{ 
-            fontFamily: "'Space Mono', monospace", 
-            fontSize: 26, 
-            fontWeight: 700, 
-            color: '#e8e8f0', 
-            margin: 0,
-            letterSpacing: '-0.02em'
-          }}>
-            Architectural Insights
-          </h1>
-          <p style={{ fontSize: 13, color: '#666680', marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#c0392b' }}>●</span> Standard deep-schema analysis for table semantics and relational integrity.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Button variant="ghost" onClick={() => loadInsights(true)} disabled={loading}>
-            {loading ? <Spinner size={14} /> : '⟳ Sync Data'}
-          </Button>
-        </div>
-      </div>
+      <PageHeader 
+        title="Architectural Insights" 
+        sub="Standard deep-schema analysis for table semantics and relational integrity."
+      >
+        <Button variant="primary" onClick={handleExportPDF} disabled={loading || !insights.overview_text}>
+          <Download size={14} /> Export PDF
+        </Button>
+        <Button variant="ghost" onClick={() => loadInsights(true)} disabled={loading}>
+          {loading ? <Spinner size={14} /> : <><RefreshCw size={14} /> Sync Data</>}
+        </Button>
+      </PageHeader>
 
       {loading ? (
         <div style={{ 
@@ -117,7 +174,7 @@ export default function InsightsPage() {
           {/* Overview Section */}
           <Panel style={{ gridColumn: 'span 2', background: 'rgba(17,17,24,0.6)', backdropFilter: 'blur(10px)' }}>
             <PanelHeader title="Schema Narrative">
-              <IconBulb />
+              <Lightbulb size={18} color="#c0392b" />
             </PanelHeader>
             <PanelBody>
               <div style={{ 
@@ -135,7 +192,7 @@ export default function InsightsPage() {
           {/* Relationships Section */}
           <Panel style={{ background: 'rgba(17,17,24,0.6)', backdropFilter: 'blur(10px)' }}>
             <PanelHeader title="Data Flow & Cardinality">
-              <IconActivity />
+              <Activity size={18} color="#c0392b" />
             </PanelHeader>
             <PanelBody>
               <div style={{ 
@@ -152,7 +209,7 @@ export default function InsightsPage() {
           {/* Alternate Methods Section */}
           <Panel style={{ background: 'rgba(17,17,24,0.6)', backdropFilter: 'blur(10px)' }}>
             <PanelHeader title="Scalability Optimization">
-              <IconLayers />
+              <Layers size={18} color="#c0392b" />
             </PanelHeader>
             <PanelBody>
               {insights.alternate_methods?.length > 0 ? (
@@ -185,7 +242,7 @@ export default function InsightsPage() {
           {/* Niche Columns Section */}
           <Panel style={{ gridColumn: 'span 2', background: 'rgba(17,17,24,0.6)', backdropFilter: 'blur(10px)' }}>
             <PanelHeader title="High-Entropy Signal Detection">
-              <IconDatabase />
+              <Database size={18} color="#c0392b" />
             </PanelHeader>
             <PanelBody>
               {insights.niche_columns?.length > 0 ? (

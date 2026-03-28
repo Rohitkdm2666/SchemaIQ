@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { Eye, EyeOff, AlertTriangle, Zap } from 'lucide-react'
 
 const S = {
   page: {
@@ -219,13 +220,13 @@ export default function LoginPage() {
                     onClick={() => setShowPass(!showPass)}
                     style={S.eyeBtn}
                   >
-                    {showPass ? '🙈' : '👁'}
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
 
               {/* Error */}
-              {error && <div style={S.errorBox}>⚠ {error}</div>}
+              {error && <div style={{ ...S.errorBox, display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={14} /> {error}</div>}
 
               {/* Submit */}
               <button
@@ -237,7 +238,7 @@ export default function LoginPage() {
               >
                 {loading
                   ? <><div style={S.spinner} /> Authenticating…</>
-                  : '⚡ Sign In to Dashboard'
+                  : <><Zap size={14} /> Sign In to Dashboard</>
                 }
               </button>
             </form>

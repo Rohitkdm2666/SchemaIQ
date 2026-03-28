@@ -143,11 +143,12 @@ async def get_quick_dictionary(
         if not engine:
             return _empty_dictionary_response("No database connection available.")
         
-        # Generate dictionary without profiling for speed
+        # Generate dictionary with fast estimation profiling
         dictionary = local_ai.generate_intelligent_dictionary(
             engine=engine,
-            include_profiling=False,
-            sample_size=100  # Minimal sampling
+            include_profiling=True,
+            sample_size=500,  # Balanced sample size
+            use_estimation=True
         )
         
         # Filter tables if requested

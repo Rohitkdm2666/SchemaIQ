@@ -144,6 +144,46 @@ class IntelligentDataProfiler:
                 'confidence_threshold': 0.9,
                 'description': 'Geographic coordinates (lat,lng)'
             },
+            'latitude': {
+                'pattern': r'^-?([1-8]?\d(\.\d+)?|90(\.0+)?)$',
+                'confidence_threshold': 0.8,
+                'description': 'Latitude coordinate'
+            },
+            'longitude': {
+                'pattern': r'^-?((1[0-7]|[1-9])?\d(\.\d+)?|180(\.0+)?)$',
+                'confidence_threshold': 0.8,
+                'description': 'Longitude coordinate'
+            },
+            'unit_concentration': {
+                'pattern': r'^[0-9.]+\s*(mgL|ugL|pCiL|ppm|ppb|ntu|hpa)$',
+                'confidence_threshold': 0.7,
+                'description': 'Concentration mg/L'
+            },
+            'unit_aviation': {
+                'pattern': r'^[0-9.]+\s*(kts|ft|mach|amsl)$',
+                'confidence_threshold': 0.7,
+                'description': 'Airspeed'
+            },
+            'blockchain_address': {
+                'pattern': r'^0x[a-fA-F0-9]{40}$',
+                'confidence_threshold': 0.95,
+                'description': 'Blockchain Address'
+            },
+            'transaction_hash': {
+                'pattern': r'^0x[a-fA-F0-9]{64}$',
+                'confidence_threshold': 0.95,
+                'description': 'Transaction Hash'
+            },
+            'unit_wei': {
+                'pattern': r'^\d{15,22}$',
+                'confidence_threshold': 0.7,
+                'description': 'Network Fee (Gas)'
+            },
+            'unit_percentage': {
+                'pattern': r'^[0-9.]+\s*%$',
+                'confidence_threshold': 0.8,
+                'description': 'Percentage value'
+            },
             'color_hex': {
                 'pattern': r'^#[0-9A-Fa-f]{6}$',
                 'confidence_threshold': 0.95,
@@ -188,7 +228,7 @@ class IntelligentDataProfiler:
         }
     
     def profile_table(self, engine: Engine, table_name: str, 
-                     sample_size: int = 1000) -> TableProfile:
+                     sample_size: int = 1000, use_estimation: bool = False) -> TableProfile:
         """
         Comprehensive table profiling with intelligent analysis
         """
@@ -201,7 +241,7 @@ class IntelligentDataProfiler:
             column_profiles = []
             for column_info in columns_info:
                 column_profile = self._profile_column(
-                    engine, table_name, column_info, row_count, sample_size
+                    engine, table_name, column_info, row_count, sample_size, use_estimation
                 )
                 column_profiles.append(column_profile)
             
@@ -277,7 +317,7 @@ class IntelligentDataProfiler:
             return []
     
     def _profile_column(self, engine: Engine, table_name: str, column_info: Dict,
-                       total_rows: int, sample_size: int) -> ColumnProfile:
+                       total_rows: int, sample_size: int, use_estimation: bool = False) -> ColumnProfile:
         """
         Comprehensive column profiling
         """
@@ -287,30 +327,51 @@ class IntelligentDataProfiler:
         try:
             with engine.connect() as conn:
                 # Get sample data and statistics
-                sample_query = f"""
-                SELECT {column_name}, 
-                       COUNT(*) as count,
-                       COUNT({column_name}) as non_null_count
-                FROM {table_name} 
-                WHERE {column_name} IS NOT NULL 
-                GROUP BY {column_name}
-                ORDER BY count DESC 
-                LIMIT {sample_size}
-                """
-                
-                result = conn.execute(text(sample_query))
-                rows = result.fetchall()
-                
-                # Extract sample values
-                sample_values = [str(row[0]) for row in rows if row[0] is not None][:10]
-                
-                # Get null count
-                null_query = f"SELECT COUNT(*) FROM {table_name} WHERE {column_name} IS NULL"
-                null_count = conn.execute(text(null_query)).scalar() or 0
-                
-                # Get unique count
-                unique_query = f"SELECT COUNT(DISTINCT {column_name}) FROM {table_name}"
-                unique_count = conn.execute(text(unique_query)).scalar() or 0
+                # For estimation, we only scan a limited subset of the table
+                if use_estimation and total_rows > sample_size:
+                    # Estimate by sampling
+                    sample_query = f"SELECT {column_name} FROM {table_name} LIMIT {sample_size}"
+                    result = conn.execute(text(sample_query))
+                    all_rows = result.fetchall()
+                    
+                    # Calculate estimated nulls and uniques from sample
+                    raw_sample_values = [row[0] for row in all_rows]
+                    sample_non_nulls = [v for v in raw_sample_values if v is not None]
+                    sample_uniques = set(sample_non_nulls)
+                    
+                    sample_values = [str(v) for v in sample_non_nulls[:10]]
+                    
+                    # Extrapolate for estimation
+                    sample_null_count = len(raw_sample_values) - len(sample_non_nulls)
+                    null_count = int((sample_null_count / len(raw_sample_values)) * total_rows) if raw_sample_values else 0
+                    
+                    # Simple estimation for unique count (extrapolation can be complex, using sample uniqueness ratio)
+                    unique_count = int((len(sample_uniques) / len(sample_non_nulls)) * total_rows) if sample_non_nulls else 0
+                else:
+                    # Full scan
+                    sample_query = f"""
+                    SELECT {column_name}, 
+                           COUNT(*) as count
+                    FROM {table_name} 
+                    WHERE {column_name} IS NOT NULL 
+                    GROUP BY {column_name}
+                    ORDER BY count DESC 
+                    LIMIT {sample_size}
+                    """
+                    
+                    result = conn.execute(text(sample_query))
+                    rows = result.fetchall()
+                    
+                    # Extract sample values
+                    sample_values = [str(row[0]) for row in rows if row[0] is not None][:10]
+                    
+                    # Get null count
+                    null_query = f"SELECT COUNT(*) FROM {table_name} WHERE {column_name} IS NULL"
+                    null_count = conn.execute(text(null_query)).scalar() or 0
+                    
+                    # Get unique count
+                    unique_query = f"SELECT COUNT(DISTINCT {column_name}) FROM {table_name}"
+                    unique_count = conn.execute(text(unique_query)).scalar() or 0
                 
         except Exception as e:
             # Fallback values on error

@@ -32,7 +32,7 @@ def get_profile(
             for t in structured.get("tables", []) or []:
                 t["foreign_keys"] = []
 
-        payload = profile_database(engine, structured, compute_distinct=compute_distinct)
+        payload = profile_database(engine, structured, schema=schema, compute_distinct=compute_distinct)
         if not include_fk_orphans:
             payload["fk_orphans"] = []
 

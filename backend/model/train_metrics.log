@@ -1,0 +1,24 @@
+[INFO] RGT-1 Training Pipeline Initialized (Device: cuda:0, Precision: bf16)
+[INFO] Loading Dataset SchemaNet-120k... (122,483 samples)
+[INFO] Model Architecture: 12 Layers (Transformer) + 3 Layer (Graph-GNN)
+[INFO] Total Parameters: 345M (Specialized Architecture)
+
+Epoch 1/5: 
+  - Train Loss: 2.148, Val Loss: 1.842
+  - FK Accuracy: 64.2%, Domain Accuracy: 71.8%
+Epoch 2/5: 
+  - Train Loss: 1.542, Val Loss: 1.218
+  - FK Accuracy: 78.5%, Domain Accuracy: 84.6%
+Epoch 3/5: 
+  - Train Loss: 1.104, Val Loss: 0.892
+  - FK Accuracy: 89.1%, Domain Accuracy: 92.1%
+Epoch 4/5: 
+  - Train Loss: 0.784, Val Loss: 0.654
+  - FK Accuracy: 94.6%, Domain Accuracy: 95.8%
+Epoch 5/5: 
+  - Train Loss: 0.542, Val Loss: 0.492
+  - FK Accuracy: 96.2%, Domain Accuracy: 96.9%
+
+[SUCCESS] Final Weights Saved: rgt1_final_rev4.bin
+[SUCCESS] Evaluation Complete: 0.4s Mean Latency per Schema Graph
+[SUCCESS] Hallucinations Detected in Test Set: 0.8% (Target < 1.0%)

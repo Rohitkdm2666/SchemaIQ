@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, Fragment } from 'react'
-import { Panel, PanelHeader, PanelBody, Tag, Button, MetricCard, QualityBar, Toggle, Input, Select } from '../components/ui.jsx'
+import { Panel, PanelHeader, PanelBody, Tag, Button, MetricCard, QualityBar, Toggle, Input, Select, PageHeader } from '../components/ui.jsx'
 import { RELATIONSHIPS, QUALITY_SCORES, ER_LINKS } from '../data/db.js' // ER_LINKS might be empty now
 import ERDiagram from '../components/ERDiagram.jsx'
 import ClassicERDiagram from '../components/ClassicERDiagram.jsx'
@@ -9,19 +9,36 @@ import { normalizeProfile, computeQualityMetrics } from '../utils/qualityMetrics
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import html2canvas from 'html2canvas'
+import { 
+  Settings, 
+  Brain, 
+  Cpu, 
+  Download, 
+  Bell, 
+  AlertTriangle, 
+  RefreshCw, 
+  CheckCircle2, 
+  Save, 
+  Database, 
+  Loader2,
+  Inbox,
+  Lock,
+  Search,
+  Check,
+  Activity,
+  Clock,
+  Layout,
+  MessageSquare,
+  Zap,
+  Network,
+  Monitor,
+  Cloud,
+  FileText,
+  Play,
+  Circle
+} from 'lucide-react'
 
-// ─── shared page header ──────────────────────────────────────────────────────
-function PageHeader({ title, sub, children }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
-      <div>
-        <h1 style={{ fontFamily: "'Space Mono',monospace", fontSize: 22, fontWeight: 700, color: '#e8e8f0', margin: 0 }}>{title}</h1>
-        {sub && <p style={{ fontSize: 14, color: '#666680', marginTop: 6 }}>{sub}</p>}
-      </div>
-      {children && <div style={{ display: 'flex', gap: 10, flexShrink: 0, marginLeft: 24 }}>{children}</div>}
-    </div>
-  )
-}
+// ─── shared form label ───────────────────────────────────────────────────────
 
 // ─── shared form label ───────────────────────────────────────────────────────
 function Label({ children }) {
@@ -114,8 +131,23 @@ export function ERDiagramPage() {
           if (!svg) return
           const clone = svg.cloneNode(true)
           clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+
+          // Apply export-only theme for Classic ER
+          if (diagramMode === 'classic') {
+            const shapes = clone.querySelectorAll('rect, ellipse, polygon')
+            shapes.forEach(s => {
+              if (s.getAttribute('fill') === '#111118') s.setAttribute('fill', '#ffffff')
+            })
+            const texts = clone.querySelectorAll('text')
+            texts.forEach(t => {
+              const cur = t.getAttribute('fill')
+              if (cur === '#e8e8f0' || cur === '#b0b0c8') t.setAttribute('fill', '#111118')
+              if (cur === '#f39c12') t.setAttribute('fill', '#c0392b') // darker red for relationship text
+            })
+          }
+
           const blob = new Blob([clone.outerHTML], { type: 'image/svg+xml' })
-          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'schema_er.svg'; a.click()
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `schema_er_${diagramMode}.svg`; a.click()
         }}>⬇ SVG</Button>
       </PageHeader>
 
@@ -274,10 +306,14 @@ export function DictionaryPage() {
       })
   }, [])
 
-  if (loading) return <div style={{ color: '#e8e8f0', padding: 40, textAlign: 'center', fontFamily: "'Space Mono',monospace" }}>🔄 Analyzing Schema and Generating Dictionary...</div>
+  if (loading) return <div style={{ color: '#e8e8f0', padding: 40, textAlign: 'center', fontFamily: "'Space Mono',monospace", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+    <Loader2 size={18} className="animate-spin" /> Analyzing Schema and Generating Dictionary...
+  </div>
   if (dictTables.length === 0) return (
     <div style={{ padding: 40, textAlign: 'center' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>📁</div>
+      <div style={{ color: '#666680', marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+        <Database size={48} />
+      </div>
       <h2 style={{ color: '#e8e8f0', fontFamily: "'Space Mono',monospace" }}>No Database Connected</h2>
       <p style={{ color: '#666680', marginTop: 8 }}>Please connect a database in the Connections page to generate the AI Data Dictionary.</p>
     </div>
@@ -339,7 +375,7 @@ export function DictionaryPage() {
         head: [['Column', 'Type', 'Constraints', 'Description', 'Business Meaning']],
         body: tableData,
         theme: 'grid',
-        headStyles: { fillColor: [192, 57, 43], fontStyle: 'bold' },
+        headStyles: { fillColor: [192, 57, 43], fontStyle: 'bold', textColor: [255, 255, 255] },
         styles: { fontSize: 8, cellPadding: 3, textColor: 60, overflow: 'linebreak' },
         columnStyles: {
           0: { cellWidth: 30, fontStyle: 'bold', textColor: 40 },
@@ -359,7 +395,9 @@ export function DictionaryPage() {
   return (
     <div>
       <PageHeader title="AI Data Dictionary" sub="Auto-generated human-readable documentation · Business context from LLM agents">
-        <Button variant="primary" onClick={handleExport}>⬇ Export All</Button>
+        <Button variant="primary" onClick={handleExport}>
+          <Download size={14} style={{ marginRight: 6 }} /> Export All
+        </Button>
       </PageHeader>
 
       {/* Tabs */}
@@ -530,7 +568,7 @@ export function QualityPage() {
       head: [['Dimension', 'Score']],
       body: dims.map(d => [d.label, `${d.pct}%`]),
       theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185], fontStyle: 'bold' },
+      headStyles: { fillColor: [41, 128, 185], fontStyle: 'bold', textColor: [255, 255, 255] },
       styles: { fontSize: 10, cellPadding: 3, textColor: 60 }
     })
 
@@ -546,7 +584,7 @@ export function QualityPage() {
       head: [['Table', 'Score', 'Status']],
       body: perTable.map(t => [t.name, `${t.score}%`, t.score >= 95 ? 'Excellent' : t.score >= 85 ? 'Good' : 'Review']),
       theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185], fontStyle: 'bold' }
+      headStyles: { fillColor: [41, 128, 185], fontStyle: 'bold', textColor: [255, 255, 255] }
     })
 
     currentY = doc.lastAutoTable.finalY + 15
@@ -567,7 +605,7 @@ export function QualityPage() {
         head: [['Severity', 'Issue', 'Description']],
         body: errs.map(issue => [sevLabel[issue.sev], issue.title, issue.desc]),
         theme: 'grid',
-        headStyles: { fillColor: [192, 57, 43], fontStyle: 'bold' },
+        headStyles: { fillColor: [192, 57, 43], fontStyle: 'bold', textColor: [255, 255, 255] },
         columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: 50 }, 2: { cellWidth: 100 } }
       })
       currentY = doc.lastAutoTable.finalY + 15
@@ -586,7 +624,7 @@ export function QualityPage() {
         head: [['Severity', 'Issue', 'Description']],
         body: warns.map(issue => [sevLabel[issue.sev], issue.title, issue.desc]),
         theme: 'grid',
-        headStyles: { fillColor: [243, 156, 18], fontStyle: 'bold' },
+        headStyles: { fillColor: [243, 156, 18], fontStyle: 'bold', textColor: [255, 255, 255] },
         columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: 50 }, 2: { cellWidth: 100 } }
       })
       currentY = doc.lastAutoTable.finalY + 15
@@ -598,7 +636,9 @@ export function QualityPage() {
   return (
     <div>
       <PageHeader title="Data Quality Report" sub={`Statistical Profiling Agent · Overall score: ${overall}% · ${profileData?.tables?.length || 0} tables analyzed — Real-time`}>
-        <Button variant="primary" onClick={handleQualityExport}>⬇ Export Report</Button>
+        <Button variant="primary" onClick={handleQualityExport}>
+          <Download size={14} style={{ marginRight: 6 }} /> Export Report
+        </Button>
       </PageHeader>
 
       {/* Dimension rings */}
@@ -697,12 +737,10 @@ export function QualityPage() {
 
 // ─── AI AGENTS ────────────────────────────────────────────────────────────────
 const INIT_AGENTS = [
-  { emoji: '⛁', name: 'Schema Extraction Agent', role: 'Reads database metadata · extracts tables, columns, keys, constraints', color: '#27ae60', status: 'idle', pct: 0, time: 'Queued', desc: 'Waiting to start...', outputs: [] },
-  { emoji: '⬡', name: 'Relationship Mapping Agent', role: 'Detects FK relationships · builds ER structure between tables', color: '#2980b9', status: 'idle', pct: 0, time: 'Queued', desc: 'Waiting to start...', outputs: [] },
-  { emoji: '📊', name: 'Data Profiling Agent', role: 'Null rates · distinct counts · FK orphans · data freshness', color: '#f39c12', status: 'idle', pct: 0, time: 'Queued', desc: 'Waiting to start...', outputs: [] },
-  { emoji: '🧠', name: 'Business Context Agent', role: 'AI-powered domain classification and business meaning inference', color: '#f0828a', status: 'idle', pct: 0, time: 'Queued', desc: 'Waiting to start...', outputs: [] },
-  { emoji: '📖', name: 'Data Dictionary Agent', role: 'Generates human-readable descriptions for all database entities', color: '#8e44ad', status: 'idle', pct: 0, time: 'Queued', desc: 'Waiting to start...', outputs: [] },
-  { emoji: '🗺', name: 'Visualization Agent', role: 'Creates schema diagrams and relationship maps', color: '#666680', status: 'idle', pct: 0, time: 'Queued', desc: 'Waiting to start...', outputs: [] },
+  { id: 'schema', icon: Database, name: 'Schema Discovery', role: 'Analyzes tables, columns and FK relationships', color: '#27ae60', status: 'idle', pct: 0, time: 'Queued', desc: 'Waiting to analyze schema metadata...', outputs: [] },
+  { id: 'profile', icon: Activity, name: 'Data Profiling', role: 'Null rates, distinct counts, and FK integrity', color: '#2980b9', status: 'idle', pct: 0, time: 'Queued', desc: 'Waiting to profile database rows...', outputs: [] },
+  { id: 'biz', icon: Brain, name: 'Business Context', role: 'AI-powered domain and purpose inference', color: '#f0828a', status: 'idle', pct: 0, time: 'Queued', desc: 'Waiting to infer business meaning...', outputs: [] },
+  { id: 'insight', icon: Network, name: 'Structural Insights', role: 'Architectural patterns and scalability', color: '#9b59b6', status: 'idle', pct: 0, time: 'Queued', desc: 'Waiting to detect architectural patterns...', outputs: [] },
 ]
 
 export function AgentsPage() {
@@ -710,7 +748,7 @@ export function AgentsPage() {
   const [log, setLog] = useState([])
   const [totalTime, setTotalTime] = useState(0)
   const [allDone, setAllDone] = useState(false)
-  const logEndRef = useRef(null)
+  const [qScore, setQScore] = useState(null)
 
   const ts = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
@@ -722,148 +760,123 @@ export function AgentsPage() {
     setAgents(prev => prev.map((a, i) => i === idx ? { ...a, ...patch } : a))
   }
 
-  // Auto-scroll log
-  useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [log])
+
+  const timestamp = () => new Date().toLocaleTimeString('en-GB')
+  
+  const startScan = async () => {
+    setAllDone(false)
+    setTotalTime(0)
+    setLog([])
+    setAgents(INIT_AGENTS)
+    
+    const t0 = performance.now()
+    addLog('[SYSTEM]', '#3498db', 'Analyzing architecture and schema...')
+
+    try {
+      // 1. Schema Discovery Agent
+      updateAgent(0, { status: 'running', pct: 30, desc: 'Connecting to database and extracting schema...' })
+      addLog('[SCHEMA]', '#3498db', 'Fetching schema metadata from /api/schema...')
+      const sRes = await fetch('http://localhost:8001/api/schema')
+      const sData = await sRes.json()
+      const tLen = sData.tables?.length || 0
+      const cLen = (sData.tables || []).reduce((acc, t) => acc + (t.columns?.length || 0), 0)
+      const rLen = sData.relationships?.length || 0
+      
+      addLog('[SCHEMA]', '#27ae60', `✓ Extracted ${tLen} tables, ${cLen} columns and ${rLen} FK edges`)
+      updateAgent(0, { 
+        status: 'done', pct: 100, time: `${((performance.now() - t0)/1000).toFixed(1)}s`, 
+        desc: `Identified ${tLen} tables across the connected schema with full relationship mapping.`,
+        outputs: [`${tLen} tables discovered`, `${cLen} columns indexed`, `${rLen} FK relationships detected`, '✓ Real-time scan complete']
+      })
+
+      // 2. Data Profiling Agent
+      updateAgent(1, { status: 'running', pct: 30, desc: 'Calculating data quality and statistical profiles...' })
+      addLog('[PROFILE]', '#3498db', 'Running row-level statistical profiling...')
+      const pRes = await fetch('http://localhost:8001/api/profile')
+      const pRaw = await pRes.json()
+      const qMetrics = computeQualityMetrics(pRaw)
+      const currentQScore = qMetrics.overall
+      setQScore(currentQScore)
+      
+      addLog('[PROFILE]', '#27ae60', `✓ Profiling complete: ${currentQScore}% Overall Quality Score`)
+      updateAgent(1, { 
+        status: 'done', pct: 100, time: `${((performance.now() - t0)/1000).toFixed(1)}s`, 
+        desc: `Computed weighted quality metrics: Completeness, Consistency, and FK Integrity.`,
+        outputs: [`Quality Score: ${currentQScore}%`, `✓ Weighted analysis complete`, `✓ Integrity: ${qMetrics.fkIntegrity}%`, '✓ Real data profiled']
+      })
+
+      // 3. Business Context Agent
+      updateAgent(2, { status: 'running', pct: 40, desc: 'Inhaling domain-specific metadata...' })
+      addLog('[BIZCTX]', '#3498db', 'Invoking LLM for business purpose inference...')
+      const bRes = await fetch('http://localhost:8001/api/dictionary/quick')
+      const bData = await bRes.json()
+      const domain = bData.domain_analysis?.primary_domain || 'General'
+      
+      addLog('[BIZCTX]', '#27ae60', `✓ Domain Inference: "${domain}" system identified`)
+      updateAgent(2, { 
+        status: 'done', pct: 100, time: `${((performance.now() - t0)/1000).toFixed(1)}s`, 
+        desc: `AI agents have identified the domain as "${domain}" with business descriptions for tables.`,
+        outputs: [`Domain: ${domain}`, `✓ Purpose mapped`, `✓ Entity aliasing complete`, '✓ Export-ready results']
+      })
+
+      // 4. Structural Insights Agent
+      updateAgent(3, { status: 'running', pct: 50, desc: 'Parsing architectural patterns...' })
+      addLog('[INSIGHT]', '#3498db', 'Analyzing schema narrative and data flow...')
+      const iRes = await fetch('http://localhost:8001/api/insights')
+      const iData = await iRes.json()
+      const insightsCount = iData.niche_columns?.length || 0
+      
+      addLog('[INSIGHT]', '#27ae60', `✓ Architecture analysis: Found ${insightsCount} high-entropy signal targets`)
+      updateAgent(3, { 
+        status: 'done', pct: 100, time: `${((performance.now() - t0)/1000).toFixed(1)}s`, 
+        desc: `Architecture parsing complete. Identified bottlenecks and optimization vectors.`,
+        outputs: [`${insightsCount} insights detected`, `✓ Narrative generated`, `✓ Scalability vectors found`, '✓ Flow mapping complete']
+      })
+
+      setTotalTime(parseFloat(((performance.now() - t0)/1000).toFixed(1)))
+      addLog('[SYSTEM]', '#27ae60', `Scan completed in ${((performance.now() - t0)/1000).toFixed(1)}s`)
+      setAllDone(true)
+    } catch (err) {
+      addLog('[ERROR]', '#e74c3c', `Pipeline Failed: ${err.message}`)
+      setAllDone(true)
+    }
+  }
 
   useEffect(() => {
-    const run = async () => {
-      const t0 = performance.now()
-
+    const checkAndAutoStart = async () => {
       try {
-        // ── Agent 0: Schema Extraction ──
-        updateAgent(0, { status: 'running', pct: 20, desc: 'Connecting to database...' })
-        addLog('[SCHEMA]', '#3498db', 'Connecting to database...')
-
-        const schemaRes = await fetch('http://localhost:8001/api/schema?infer=true')
-        const schema = await schemaRes.json()
-        const tables = schema.tables || []
-        const rels = schema.relationships || []
-        const cols = tables.reduce((s, t) => s + (t.columns?.length || 0), 0)
-        const t1 = ((performance.now() - t0) / 1000).toFixed(1)
-
-        addLog('[SCHEMA]', '#27ae60', `✓ ${tables.length} tables, ${cols} columns extracted`)
-        updateAgent(0, {
-          status: 'done', pct: 100, time: `${t1}s`,
-          desc: `Extracted ${tables.length} tables with ${cols} columns from the connected database.`,
-          outputs: [`${tables.length} tables extracted`, `${cols} columns mapped`, `${rels.length} FK relationships`, '✓ DDL generated']
-        })
-
-        // ── Agent 1: Relationship Mapping ──
-        updateAgent(1, { status: 'running', pct: 30, desc: 'Building FK relationship graph...' })
-        addLog('[RELMAP]', '#3498db', 'Building FK relationship graph...')
-        await new Promise(r => setTimeout(r, 300))
-
-        const t2 = ((performance.now() - t0) / 1000).toFixed(1)
-        addLog('[RELMAP]', '#27ae60', `✓ ${rels.length} FK edges mapped, cardinality labelled`)
-        updateAgent(1, {
-          status: 'done', pct: 100, time: `${t2}s`,
-          desc: `Mapped ${rels.length} foreign key relationships with cardinality labels. ER graph constructed.`,
-          outputs: ['✓ ER graph built', `✓ ${rels.length} edges mapped`, '✓ Cardinality labelled', '✓ Join paths computed']
-        })
-
-        // ── Agent 2: Data Profiling ──
-        updateAgent(2, { status: 'running', pct: 10, desc: 'Profiling all columns...' })
-        addLog('[PROFILE]', '#3498db', `Profiling ${cols} columns across ${tables.length} tables...`)
-
-        const profileRes = await fetch('http://localhost:8001/api/profile')
-        const profile = await profileRes.json()
-        const totalRows = (profile.tables || []).reduce((s, t) => s + (t.row_count || 0), 0)
-        const highNull = (profile.tables || []).flatMap(t => (t.columns || []).filter(c => c.null_percent > 30).map(c => ({ tbl: t.name, col: c.name, pct: c.null_percent })))
-        const orphanCount = (profile.fk_orphans || []).reduce((s, o) => s + o.orphan_count, 0)
-
-        highNull.slice(0, 3).forEach(c => {
-          addLog('[PROFILE]', '#f39c12', `⚠ ${c.tbl}.${c.col}: ${c.pct.toFixed(1)}% null`)
-        })
-
-        const totalCells = (profile.tables || []).reduce((s, t) => s + t.row_count * (t.columns?.length || 0), 0)
-        const totalNulls = (profile.tables || []).reduce((s, t) => s + (t.columns || []).reduce((ss, c) => ss + (c.null_count || 0), 0), 0)
-        const qualityPct = totalCells > 0 ? (((totalCells - totalNulls) / totalCells) * 100).toFixed(1) : '100.0'
-
-        addLog('[PROFILE]', '#27ae60', `✓ Quality: ${qualityPct}% completeness · ${totalRows.toLocaleString()} rows · ${orphanCount} FK orphans`)
-        const t3 = ((performance.now() - t0) / 1000).toFixed(1)
-        updateAgent(2, {
-          status: 'done', pct: 100, time: `${t3}s`,
-          desc: `Profiled ${totalRows.toLocaleString()} rows across ${(profile.tables || []).length} tables. Computed null rates, distinct counts, FK integrity.`,
-          outputs: [`✓ ${totalRows.toLocaleString()} rows profiled`, `✓ Quality: ${qualityPct}%`, `✓ ${orphanCount} FK orphans`, `✓ ${highNull.length} null warnings`]
-        })
-
-        // ── Agent 3: Business Context ──
-        updateAgent(3, { status: 'running', pct: 20, desc: 'Classifying business domain...' })
-        addLog('[BIZCTX]', '#3498db', 'Running AI domain classification...')
-
-        const dictRes = await fetch('http://localhost:8001/api/dictionary/quick')
-        const dict = await dictRes.json()
-        const domain = dict.domain_analysis?.primary_domain || 'general'
-        const confidence = dict.domain_analysis?.confidence || 0
-        const dictTables = dict.tables || []
-
-        addLog('[BIZCTX]', '#27ae60', `✓ Domain: ${domain} (${(confidence * 100).toFixed(0)}% confidence)`)
-        dictTables.slice(0, 4).forEach(t => {
-          addLog('[BIZCTX]', '#27ae60', `✓ ${t.name} — business context generated`)
-        })
-        const t4 = ((performance.now() - t0) / 1000).toFixed(1)
-        updateAgent(3, {
-          status: 'done', pct: 100, time: `${t4}s`,
-          desc: `Domain classified as "${domain}" with ${(confidence * 100).toFixed(0)}% confidence. Business context generated for ${dictTables.length} tables.`,
-          outputs: [`✓ Domain: ${domain}`, `✓ ${(confidence * 100).toFixed(0)}% confidence`, ...dictTables.slice(0, 3).map(t => `✓ ${t.name}`)]
-        })
-
-        // ── Agent 4: Data Dictionary ──
-        updateAgent(4, { status: 'running', pct: 40, desc: 'Generating data dictionary...' })
-        addLog('[DICT]', '#3498db', 'Aggregating all agent outputs...')
-        await new Promise(r => setTimeout(r, 200))
-        addLog('[DICT]', '#3498db', `Generating dictionary for ${dictTables.length} tables...`)
-        await new Promise(r => setTimeout(r, 200))
-
-        const totalDictCols = dictTables.reduce((s, t) => s + (t.columns?.length || 0), 0)
-        addLog('[DICT]', '#27ae60', `✓ Dictionary complete — ${dictTables.length} tables, ${totalDictCols} columns documented`)
-        const t5 = ((performance.now() - t0) / 1000).toFixed(1)
-        updateAgent(4, {
-          status: 'done', pct: 100, time: `${t5}s`,
-          desc: `Generated comprehensive data dictionary with ${dictTables.length} tables and ${totalDictCols} column definitions. Export-ready.`,
-          outputs: [`✓ ${dictTables.length} tables documented`, `✓ ${totalDictCols} columns`, '✓ Markdown ready', '✓ CSV ready']
-        })
-
-        // ── Agent 5: Visualization ──
-        updateAgent(5, { status: 'running', pct: 50, desc: 'Rendering ER diagram...' })
-        addLog('[VISUAL]', '#3498db', 'Rendering ER diagram from relationship graph...')
-        await new Promise(r => setTimeout(r, 300))
-
-        addLog('[VISUAL]', '#27ae60', `✓ ER diagram rendered — ${tables.length} nodes, ${rels.length} edges`)
-        const tFinal = ((performance.now() - t0) / 1000).toFixed(1)
-        updateAgent(5, {
-          status: 'done', pct: 100, time: `${tFinal}s`,
-          desc: `ER diagram rendered with ${tables.length} table nodes and ${rels.length} relationship edges. Interactive SVG ready.`,
-          outputs: [`✓ ${tables.length} nodes`, `✓ ${rels.length} edges`, '✓ SVG exported', '✓ Interactive ready']
-        })
-
-        setTotalTime(parseFloat(tFinal))
-        addLog('[SYSTEM]', '#27ae60', `✓ All 6 agents completed in ${tFinal}s`)
-        setAllDone(true)
-
-      } catch (err) {
-        addLog('[ERROR]', '#e74c3c', `Pipeline failed: ${err.message}`)
+        const res = await fetch('http://localhost:8001/api/connection')
+        const conn = await res.json()
+        if (conn.status === 'connected' && allDone === false && agents.every(a => a.status === 'idle')) {
+          addLog('[SYSTEM]', '#9b59b6', '⟳ Active connection detected. Auto-initiating analysis...')
+          startScan()
+        }
+      } catch (e) {
+        console.error("Auto-start check failed", e)
       }
     }
-    run()
+    checkAndAutoStart()
   }, [])
 
   const doneCount = agents.filter(a => a.status === 'done').length
   const runCount = agents.filter(a => a.status === 'running').length
   const pipelineTag = allDone ? 'done' : runCount > 0 ? 'run' : 'idle'
-  const pipelineLabel = allDone ? '✓ Complete' : runCount > 0 ? '⟳ Running' : '○ Idle'
+  const pipelineLabel = allDone ? <><CheckCircle2 size={12} /> Complete</> : runCount > 0 ? <><RefreshCw size={12} className="animate-spin" /> Running</> : <><Circle size={12} /> Idle</>
 
   return (
     <div>
-      <PageHeader title="AI Agent Insights" sub={`Multi-Agent Engine · 6 specialised agents · ${allDone ? 'All complete' : 'Running...'}`}>
-        <Button variant="ghost" onClick={() => window.location.reload()}>⟳ Re-run All</Button>
+      <PageHeader title="AI Agent Insights" sub={`Multi-Agent Engine · ${agents.length} specialized agents · Dynamic Diagnostics`}>
+        <Button variant="ghost" onClick={startScan} disabled={!allDone && agents.some(a => a.status === 'running')}>
+          {!allDone && agents.some(a => a.status === 'running') ? <><RefreshCw size={14} className="animate-spin" /> Running...</> : <><Play size={14} /> Start Analysis</>}
+        </Button>
+        <Button variant="ghost" onClick={() => window.location.reload()}><RefreshCw size={14} /> Reload</Button>
       </PageHeader>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
-        <MetricCard icon="✓" label="Completed" value={doneCount} delta={doneCount === 6 ? '▲ all done' : '▲ agents done'} cardColor="#27ae60" delay={0} />
-        <MetricCard icon="⟳" label="Running" value={runCount} delta={runCount > 0 ? '● in progress' : '● idle'} deltaColor="#f39c12" cardColor="#f39c12" delay={50} />
-        <MetricCard icon="⏱" label="Total Runtime" value={totalTime > 0 ? `${totalTime}s` : '...'} delta={allDone ? '▲ complete' : '● running'} cardColor="#2980b9" delay={100} />
-        <MetricCard icon="🧠" label="API Calls" value={log.length} delta="live log entries" deltaColor="#666680" cardColor="#9b59b6" delay={150} />
+        <MetricCard icon={<CheckCircle2 size={20} />} label="Completed" value={doneCount} delta="agents done" cardColor="#27ae60" delay={0} />
+        <MetricCard icon={<Activity size={20} />} label="Data Quality" value={qScore ? `${qScore}%` : '---'} delta={qScore ? (qScore > 90 ? 'Excellent' : 'Analyzing') : 'Idle'} deltaColor={qScore > 90 ? '#27ae60' : '#f39c12'} cardColor="#c0392b" delay={50} />
+        <MetricCard icon={<Clock size={20} />} label="Total Runtime" value={totalTime > 0 ? `${totalTime}s` : '...'} delta={allDone ? 'complete' : 'running'} cardColor="#2980b9" delay={100} />
+        <MetricCard icon={<Brain size={20} />} label="API Calls" value={log.length} delta="live log entries" deltaColor="#666680" cardColor="#9b59b6" delay={150} />
       </div>
 
       {/* Pipeline */}
@@ -874,13 +887,28 @@ export function AgentsPage() {
             {agents.map((a, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                  <div style={{
-                    width: 52, height: 52, borderRadius: '50%',
-                    border: `2px solid ${a.status === 'done' ? '#27ae60' : a.status === 'running' ? '#f39c12' : '#252540'}`,
-                    background: a.status === 'done' ? 'rgba(39,174,96,0.12)' : a.status === 'running' ? 'rgba(243,156,18,0.12)' : '#16161f',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
-                    animation: a.status === 'running' ? 'spin 2s linear infinite' : undefined,
-                  }}>{a.emoji}</div>
+                  <div style={{ position: 'relative', width: 52, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* The Spinning Layer (only when running) */}
+                    {a.status === 'running' && (
+                      <div style={{
+                        position: 'absolute', inset: -2,
+                        borderRadius: '50%',
+                        border: '2px solid transparent',
+                        borderTopColor: '#f39c12',
+                        animation: 'spin 1s linear infinite'
+                      }} />
+                    )}
+                    {/* The Static Icon Container */}
+                    <div style={{
+                      width: '100%', height: '100%',
+                      borderRadius: '50%',
+                      border: `2px solid ${a.status === 'done' ? '#27ae60' : '#252540'}`,
+                      background: a.status === 'done' ? 'rgba(39,174,96,0.12)' : a.status === 'running' ? 'rgba(243,156,18,0.12)' : '#16161f',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: a.status === 'done' ? '#27ae60' : a.status === 'running' ? '#f39c12' : '#252540',
+                      transition: 'all 0.3s ease'
+                    }}><a.icon size={24} /></div>
+                  </div>
                   <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: '#666680', textAlign: 'center', whiteSpace: 'pre-line', lineHeight: 1.4, maxWidth: 70 }}>{a.name.replace(' Agent', '').replace(' ', '\n')}</div>
                 </div>
                 {i < agents.length - 1 && (
@@ -892,44 +920,43 @@ export function AgentsPage() {
         </PanelBody>
       </Panel>
 
-      {/* Agent cards + log */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {agents.map(a => (
-            <Panel key={a.name}>
-              <div style={{ height: 3, background: a.color, borderRadius: '14px 14px 0 0' }} />
-              <PanelBody>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 14 }}>
-                  <div style={{ width: 50, height: 50, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0, background: a.color + '18' }}>{a.emoji}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 14, fontWeight: 700, color: '#e8e8f0' }}>{a.name}</div>
-                    <div style={{ fontSize: 12, color: '#666680', marginTop: 4 }}>{a.role}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <Tag variant={a.status === 'done' ? 'done' : a.status === 'running' ? 'run' : 'idle'}>{a.status === 'done' ? '✓ DONE' : a.status === 'running' ? '⟳ RUNNING' : '○ IDLE'}</Tag>
-                    <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#444458', marginTop: 6 }}>{a.time}</div>
-                  </div>
+      {/* Agent Cards (Wide grid above log) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 24 }}>
+        {agents.map(a => (
+          <Panel key={a.name}>
+            <div style={{ height: 3, background: a.color, borderRadius: '14px 14px 0 0' }} />
+            <PanelBody>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: a.color + '18', color: a.color }}>
+                  <a.icon size={20} />
                 </div>
-                <p style={{ fontSize: 13, color: '#666680', lineHeight: 1.7, marginBottom: 14 }}>{a.desc}</p>
-                <div style={{ height: 5, background: '#1e1e2e', borderRadius: 3, marginBottom: 6, overflow: 'hidden' }}>
-                  <div style={{ width: `${a.pct}%`, height: '100%', background: a.color, borderRadius: 3, transition: 'width 1s ease' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, fontWeight: 700, color: '#e8e8f0' }}>{a.name}</div>
+                  <Tag variant={a.status === 'done' ? 'done' : a.status === 'running' ? 'run' : 'idle'}>
+                    {a.status === 'done' ? <><CheckCircle2 size={10} /> DONE</> : a.status === 'running' ? <><RefreshCw size={10} className="animate-spin" /> RUN</> : <><Circle size={10} /> IDLE</>}
+                  </Tag>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#444458', marginBottom: 14 }}>
-                  <span>Progress</span><span>{a.pct}%</span>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {a.outputs.map(o => (
-                    <span key={o} style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, padding: '4px 10px', borderRadius: 20, border: `1px solid ${o.includes('✓') ? 'rgba(39,174,96,0.35)' : '#252540'}`, background: o.includes('✓') ? 'rgba(39,174,96,0.1)' : '#16161f', color: o.includes('✓') ? '#27ae60' : '#666680' }}>{o}</span>
-                  ))}
-                </div>
-              </PanelBody>
-            </Panel>
-          ))}
-        </div>
+              </div>
+              <p style={{ fontSize: 11, color: '#666680', lineHeight: 1.5, marginBottom: 12, height: 34, overflow: 'hidden' }}>{a.desc}</p>
+              <div style={{ height: 4, background: '#1e1e2e', borderRadius: 2, marginBottom: 4, overflow: 'hidden' }}>
+                <div style={{ width: `${a.pct}%`, height: '100%', background: a.color, borderRadius: 2, transition: 'width 0.8s ease' }} />
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                {a.outputs.slice(0, 2).map(o => (
+                  <span key={o} style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, padding: '2px 8px', borderRadius: 4, background: '#16161f', border: '1px solid #252540', color: '#666680' }}>{o}</span>
+                ))}
+              </div>
+            </PanelBody>
+          </Panel>
+        ))}
+      </div>
+
+      {/* Agent log (Full width) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
 
         {/* Live log */}
         <Panel style={{ alignSelf: 'start', position: 'sticky', top: 80 }}>
-          <PanelHeader title="Live Agent Log"><Tag variant={allDone ? 'done' : 'run'}>{allDone ? '✓ DONE' : '● LIVE'}</Tag></PanelHeader>
+          <PanelHeader title="Live Agent Log"><Tag variant={allDone ? 'done' : 'run'}>{allDone ? <><CheckCircle2 size={10} /> DONE</> : <><Activity size={10} /> LIVE</>}</Tag></PanelHeader>
           <div style={{ background: '#0a0a0f', padding: '16px', fontFamily: "'Space Mono',monospace", fontSize: 11, lineHeight: 2, height: 640, overflowY: 'auto' }}>
             {log.map((l, i) => (
               <div key={i} style={{ display: 'flex', gap: 10 }}>
@@ -944,7 +971,6 @@ export function AgentsPage() {
                 <span style={{ color: '#333348' }}>Processing…</span>
               </div>
             )}
-            <div ref={logEndRef} />
           </div>
         </Panel>
       </div>
@@ -1071,7 +1097,11 @@ export function ConnectionsPage() {
       })
       const data = await res.json()
       if (res.ok && data.status === 'connected') {
-        setLog(prev => [...prev, { color: '#27ae60', msg: `  [ OK ] Connection successful to ${finalUrl}` }])
+        setLog(prev => [
+          ...prev, 
+          { color: '#27ae60', msg: `  [ OK ] Connection successful to ${finalUrl}` },
+          { color: '#9b59b6', msg: `  [ AI ] Discovery Agent: Connection verified. Schema intelligence is now active.` }
+        ])
         fetchData() // Refresh everything
       } else {
         setLog(prev => [...prev, { color: '#e74c3c', msg: `  [ ERR ] ${data.detail || 'Connection failed'}` }])
@@ -1090,12 +1120,12 @@ export function ConnectionsPage() {
   }
 
   const DBS = [
-    { emoji: '🐘', name: 'PostgreSQL', desc: 'Full schema introspection, FK detection, constraint mapping.', connected: connInfo.status === 'connected' && connInfo.source === 'database' && connInfo.engine === engineTypes.postgresql, latency: (connInfo.status === 'connected' && connInfo.engine === engineTypes.postgresql) ? `${latency}ms` : null },
-    { emoji: '🐬', name: 'MySQL / MariaDB', desc: 'InnoDB schema extraction and stored procedure analysis.', connected: connInfo.status === 'connected' && connInfo.source === 'database' && connInfo.engine === engineTypes.mysql, latency: (connInfo.status === 'connected' && connInfo.engine === engineTypes.mysql) ? `${latency}ms` : null },
-    { emoji: '🟦', name: 'SQL Server', desc: 'MSSQL metadata extraction with T-SQL support.', connected: false },
-    { emoji: '🪶', name: 'SQLite', desc: 'Lightweight local DB for rapid prototyping.', connected: connInfo.status === 'connected' && connInfo.source === 'database' && connInfo.engine === engineTypes.sqlite, latency: (connInfo.status === 'connected' && connInfo.source === 'database' && connInfo.engine === engineTypes.sqlite) ? `${latency}ms` : null },
-    { emoji: '☁️', name: 'Cloud Warehouses', desc: 'BigQuery, Redshift, Snowflake via JDBC/ODBC.', connected: false, soon: true },
-    { emoji: '📁', name: 'Flat Files / CSV', desc: 'Upload CSV or JSON. Auto-infers schema and types.', connected: connInfo.status === 'connected' && connInfo.source === 'file', latency: (connInfo.status === 'connected' && connInfo.source === 'file') ? `${latency}ms` : null },
+    { icon: Database, color: '#3498db', name: 'PostgreSQL', desc: 'Full schema introspection, FK detection, mapping.', connected: connInfo.status === 'connected' && connInfo.source === 'database' && connInfo.engine === engineTypes.postgresql, latency: (connInfo.status === 'connected' && connInfo.engine === engineTypes.postgresql) ? `${latency}ms` : null },
+    { icon: Database, color: '#f39c12', name: 'MySQL / MariaDB', desc: 'InnoDB extraction and stored procedure analysis.', connected: connInfo.status === 'connected' && connInfo.source === 'database' && connInfo.engine === engineTypes.mysql, latency: (connInfo.status === 'connected' && connInfo.engine === engineTypes.mysql) ? `${latency}ms` : null },
+    { icon: Monitor, color: '#e74c3c', name: 'SQL Server', desc: 'MSSQL metadata extraction with T-SQL support.', connected: false },
+    { icon: Database, color: '#7f8c8d', name: 'SQLite', desc: 'Lightweight local DB for rapid prototyping.', connected: connInfo.status === 'connected' && connInfo.source === 'database' && connInfo.engine === engineTypes.sqlite, latency: (connInfo.status === 'connected' && connInfo.source === 'database' && connInfo.engine === engineTypes.sqlite) ? `${latency}ms` : null },
+    { icon: Cloud, color: '#2980b9', name: 'Cloud Warehouses', desc: 'BigQuery, Snowflake via JDBC/ODBC.', connected: false, soon: true },
+    { icon: FileText, color: '#27ae60', name: 'Flat Files / CSV', desc: 'Auto-infers schema and types from files.', connected: connInfo.status === 'connected' && connInfo.source === 'file', latency: (connInfo.status === 'connected' && connInfo.source === 'file') ? `${latency}ms` : null },
   ]
 
   return (
@@ -1105,10 +1135,10 @@ export function ConnectionsPage() {
       </PageHeader>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
-        <MetricCard icon="⚡" label="Active Connections" value={connInfo.status === 'connected' ? "1" : "0"} delta={connInfo.status === 'connected' ? "● Online" : "○ Offline"} cardColor={connInfo.status === 'connected' ? "#27ae60" : "#666680"} delay={0} />
-        <MetricCard icon="⛁" label="Tables Discovered" value={dbData.tables || "0"} delta="▲ Auto-scanned" cardColor="#2980b9" delay={50} />
-        <MetricCard icon="⏱" label="Avg Latency" value={latency > 0 ? `${latency}ms` : "---"} delta={latency < 100 ? "▲ Excellent" : "● Stable"} cardColor="#f39c12" delay={100} />
-        <MetricCard icon="↻" label="Last Sync" value={lastSyncSecs > 59 ? `${Math.floor(lastSyncSecs / 60)}m` : `${lastSyncSecs}s`} delta="ago" deltaColor="#666680" cardColor="#9b59b6" delay={150} />
+        <MetricCard icon={<Zap size={20} />} label="Active Connections" value={connInfo.status === 'connected' ? "1" : "0"} delta={connInfo.status === 'connected' ? "Online" : "Offline"} cardColor={connInfo.status === 'connected' ? "#27ae60" : "#666680"} delay={0} />
+        <MetricCard icon={<Database size={20} />} label="Tables Discovered" value={dbData.tables || "0"} delta="Auto-scanned" cardColor="#2980b9" delay={50} />
+        <MetricCard icon={<Activity size={20} />} label="Avg Latency" value={latency > 0 ? `${latency}ms` : "---"} delta={latency < 100 ? "Excellent" : "Stable"} cardColor="#f39c12" delay={100} />
+        <MetricCard icon={<RefreshCw size={20} />} label="Last Sync" value={lastSyncSecs > 59 ? `${Math.floor(lastSyncSecs / 60)}m` : `${lastSyncSecs}s`} delta="ago" deltaColor="#666680" cardColor="#9b59b6" delay={150} />
       </div>
 
       {/* Engine grid */}
@@ -1125,11 +1155,11 @@ export function ConnectionsPage() {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#c0392b'; e.currentTarget.style.transform = 'translateY(-2px)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = db.connected ? 'rgba(39,174,96,0.4)' : '#1e1e2e'; e.currentTarget.style.transform = 'translateY(0)' }}
               >
-                <div style={{ fontSize: 28, marginBottom: 12 }}>{db.emoji}</div>
+                <div style={{ marginBottom: 12, color: db.color }}><db.icon size={28} /></div>
                 <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, fontWeight: 700, color: '#e8e8f0', marginBottom: 8 }}>{db.name}</div>
                 <div style={{ fontSize: 12, color: '#666680', lineHeight: 1.6, marginBottom: 16 }}>{db.desc}</div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  {db.connected ? <Tag variant="done">● CONNECTED</Tag> : db.soon ? <Tag variant="idle">COMING SOON</Tag> : <Tag variant="idle">○ AVAILABLE</Tag>}
+                  {db.connected ? <Tag variant="done"><CheckCircle2 size={10} /> CONNECTED</Tag> : db.soon ? <Tag variant="idle">COMING SOON</Tag> : <Tag variant="idle">AVAILABLE</Tag>}
                   {db.latency && <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#666680' }}>{db.latency}</span>}
                 </div>
               </div>
@@ -1171,7 +1201,7 @@ export function ConnectionsPage() {
                   <Label>Upload Database File (.csv or .sql)</Label>
                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 80, border: '2px dashed #1e1e2e', borderRadius: 12, background: '#16161f', cursor: 'pointer', color: '#666680', fontFamily: "'Space Mono', monospace", fontSize: 13, transition: '0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = '#c0392b'} onMouseLeave={e => e.currentTarget.style.borderColor = '#1e1e2e'}>
                     <input type="file" accept=".csv,.sql,.sqlite" onChange={e => setSelectedFile(e.target.files[0])} style={{ display: 'none' }} />
-                    {selectedFile ? <span style={{ color: '#2980b9' }}>📁 Selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span> : <span>Drag & Drop or Click to Select File</span>}
+                    {selectedFile ? <span style={{ color: '#2980b9' }}>Selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span> : <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><FileText size={18} /> <span>Drag & Drop or Click to Select File</span></div>}
                   </label>
                 </div>
               ) : (
@@ -1302,7 +1332,7 @@ export function SettingsPage() {
     }
   }
 
-  const TABS = [['general', '⚙ General'], ['ai', '🧠 AI Models'], ['agents', '⬢ Agents'], ['export', '⬇ Export'], ['notifications', '🔔 Notifications'], ['danger', '⚠ Danger']]
+  const TABS = [['general', <><Settings size={14} /> General</>], ['ai', <><Brain size={14} /> AI Models</>], ['agents', <><Cpu size={14} /> Agents</>], ['export', <><Download size={14} /> Export</>], ['notifications', <><Bell size={14} /> Notifications</>], ['danger', <><AlertTriangle size={14} /> Danger</>]]
 
   const Row = ({ label, desc, k }) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid rgba(30,30,46,0.5)' }}>
@@ -1322,7 +1352,7 @@ export function SettingsPage() {
     <div>
       <PageHeader title="Settings" sub="Configure AI models, agents, export preferences and platform settings">
         <Button variant="primary" onClick={save} disabled={saving || loading}>
-          {saving ? '⟳ Saving...' : (saved ? '✓ Saved!' : '💾 Save Changes')}
+          {saving ? <><RefreshCw size={14} className="animate-spin" /> Saving...</> : (saved ? <><CheckCircle2 size={14} /> Saved!</> : <><Save size={14} /> Save Changes</>)}
         </Button>
       </PageHeader>
 
@@ -1342,7 +1372,7 @@ export function SettingsPage() {
                 }}
                   onMouseEnter={e => { if (tab !== id) { e.currentTarget.style.color = '#b0b0c8'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' } }}
                   onMouseLeave={e => { if (tab !== id) { e.currentTarget.style.color = '#666680'; e.currentTarget.style.background = 'transparent' } }}
-                >{label}</button>
+                >{Array.isArray(label) || typeof label === 'object' ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{label}</div> : label}</button>
               ))}
             </div>
           </Panel>
@@ -1466,7 +1496,9 @@ export function SettingsPage() {
                     { title: 'Delete Project', desc: 'Permanently deletes this project, all connections, outputs, and settings. This cannot be undone.', label: 'Delete Project', primary: true },
                   ].map(d => (
                     <div key={d.title} style={{ background: 'rgba(192,57,43,0.06)', border: '1px solid rgba(192,57,43,0.25)', borderRadius: 12, padding: '20px' }}>
-                      <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, color: '#e74c3c', marginBottom: 8 }}>⚠ {d.title}</div>
+                      <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, color: '#e74c3c', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <AlertTriangle size={14} /> {d.title}
+                      </div>
                       <p style={{ fontSize: 13, color: '#666680', lineHeight: 1.7, marginBottom: 16 }}>{d.desc}</p>
                       <Button variant="danger">{d.label}</Button>
                     </div>

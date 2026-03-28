@@ -314,6 +314,97 @@ class UniversalDomainClassifier:
                 },
                 'business_type': 'Government Agency',
                 'industry': 'Government & Public Sector'
+            },
+            
+            'biotech': {
+                'primary_keywords': {
+                    'specimen': 10, 'assay': 9, 'sequence': 9, 'viability': 9, 'culture': 8,
+                    'passage': 8, 'medium': 7, 'cell': 9, 'density': 8, 'incubate': 7,
+                    'rna': 8, 'protein': 8, 'genomics': 9, 'biotech': 10, 'lab': 7,
+                    'experiment': 7, 'sample': 6, 'batch': 6, 'morphology': 7
+                },
+                'secondary_keywords': {
+                    'confluence': 5, 'trypsin': 5, 'dmme': 4, 'rpmi': 4, 'ph_val': 5,
+                    'conc_ug': 5, 'cryo': 4, 'freeze': 4, 'thaw': 4
+                },
+                'business_type': 'Life Sciences R&D',
+                'industry': 'Biotechnology'
+            },
+            
+            'fintech': {
+                'primary_keywords': {
+                    'iban': 10, 'swift': 10, 'merchant': 9, 'transaction': 9, 'settlement': 8,
+                    'clearing': 8, 'ledger': 7, 'wallet': 9, 'crypto': 9, 'blockchain': 8,
+                    'payment': 7, 'mcc': 7, 'gateway': 8, 'authorization': 7, 'fraud': 8,
+                    'kyc': 9, 'aml': 9, 'dispute': 7, 'refund': 6
+                },
+                'secondary_keywords': {
+                    'bin': 5, 'terminal': 4, 'issuer': 5, 'acquirer': 5, 'routing': 4,
+                    'fee': 4, 'interchange': 5, 'card': 4, 'pos': 4
+                },
+                'business_type': 'Digital Banking',
+                'industry': 'Financial Technology'
+            },
+            
+            'iot_telemetry': {
+                'primary_keywords': {
+                    'sensor': 10, 'device': 10, 'telemetry': 10, 'reading': 9, 'payload': 8,
+                    'mqtt': 9, 'uptime': 7, 'heartbeat': 8, 'firmware': 8, 'gateway': 7,
+                    'edge': 7, 'connection': 6, 'signal': 6, 'protocol': 6, 'iot': 10,
+                    'mac': 7, 'metric': 7, 'value': 5, 'timestamp': 6
+                },
+                'secondary_keywords': {
+                    'battery': 4, 'voltage': 4, 'current': 4, 'temperature': 4, 'humidity': 4,
+                    'co2': 4, 'pressure': 4, 'flow': 4, 'latency': 5
+                },
+                'business_type': 'Connected Devices',
+                'industry': 'Internet of Things'
+            },
+            
+            'aerospace': {
+                'primary_keywords': {
+                    'altitude': 10, 'thrust': 9, 'velocity': 9, 'mach': 8, 'pitch': 8,
+                    'yaw': 8, 'roll': 8, 'avionics': 9, 'flight': 9, 'aircraft': 10,
+                    'engine': 7, 'fuel': 6, 'telemetry': 7, 'gnc': 8, 'orbit': 8,
+                    'payload': 6, 'mission': 7, 'vibration': 6, 'stress': 6,
+                    'airspeed': 8, 'v1': 7, 'v2': 7, 'vr': 7, 'flt_num': 8, 'ata': 7
+                },
+                'secondary_keywords': {
+                    'temp_k': 5, 'press_pa': 5, 'accel': 4, 'gyro': 5, 'inertial': 5,
+                    'nozzle': 4, 'valve': 4, 'actuator': 4, 'ac_reg': 6, 'lru': 5
+                },
+                'business_type': 'Aviation Systems',
+                'industry': 'Aerospace & Defense'
+            },
+            
+            'blockchain': {
+                'primary_keywords': {
+                    'transaction': 10, 'address': 9, 'hash': 9, 'block': 8, 'gas': 8,
+                    'wei': 9, 'nonce': 7, 'contract': 9, 'wallet': 9, 'ledger': 8,
+                    'chain': 8, 'uncle': 6, 'receipt': 7, 'bloom': 6, 'merkle': 8,
+                    'proof': 7, 'validator': 8, 'epoch': 7, 'slot': 7, 'randao': 6
+                },
+                'secondary_keywords': {
+                    'eth': 5, 'gas_price': 5, 'priority_fee': 4, 'hex': 4, 'abi': 5,
+                    'evm': 5, 'mainnet': 4, 'testnet': 4, 'graffiti': 4, 'wei_amt': 6
+                },
+                'business_type': 'Web3 & Decentralized Ledger',
+                'industry': 'Blockchain Technology'
+            },
+            
+            'environmental': {
+                'primary_keywords': {
+                    'turbidity': 10, 'conductivity': 10, 'ph_level': 10, 'salinity': 9, 
+                    'dissolved_ox': 10, 'nitrate': 8, 'phosphate': 8, 'sulfate': 8, 'iron': 7,
+                    'alkalinity': 8, 'hardness': 8, 'monitoring': 7, 'water': 9, 'quality': 8,
+                    'chlorine': 8, 'contamination': 9, 'ppm': 7, 'ppb': 7
+                },
+                'secondary_keywords': {
+                    'ugl': 5, 'mgl': 5, 'potable': 4, 'source': 4, 'aquifer': 4,
+                    'well': 4, 'station': 4, 'sample': 4
+                },
+                'business_type': 'Ecological Monitoring',
+                'industry': 'Environmental Services'
             }
         }
     
@@ -331,7 +422,11 @@ class UniversalDomainClassifier:
             'transportation': ['transport', 'logistics', 'shipping', 'delivery', 'freight', 'cargo'],
             'entertainment': ['media', 'entertainment', 'gaming', 'sports', 'recreation', 'leisure'],
             'education': ['school', 'university', 'college', 'academic', 'educational', 'training'],
-            'government': ['government', 'public', 'municipal', 'federal', 'state', 'civic']
+            'government': ['government', 'public', 'municipal', 'federal', 'state', 'civic'],
+            'biotechnology': ['biotech', 'life', 'science', 'clinical', 'medical', 'lab', 'research'],
+            'aerospace': ['flight', 'aviation', 'space', 'aircraft', 'satellite', 'mission'],
+            'iot': ['sensor', 'telemetry', 'device', 'smart', 'connected', 'network'],
+            'fintech': ['payment', 'wallet', 'crypto', 'bank', 'digital', 'settlement']
         }
     
     def _build_business_type_indicators(self) -> Dict[str, List[str]]:

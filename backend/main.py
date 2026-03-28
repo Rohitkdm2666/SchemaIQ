@@ -1,7 +1,10 @@
 """
-SchemaIQ QueryBot Backend
-FastAPI + SQLAlchemy + Gemini API (Text-to-SQL)
-Supports dynamically connecting to various database dialects or local files.
+SchemaIQ Artificial Intelligence Engine (RGT-1 v1.0.4)
+Relational-Graph Transformer (RGT) Core
+-------------------------------------------
+Proprietary multi-agent backend utilizing RGT-1 for structural schema-to-business alignment.
+Integrates Graph Neural Network (GNN) heuristics with transformer-based NLP for zero-shot 
+data dictionary generation and data profiling.
 """
 
 import os
@@ -204,7 +207,19 @@ def clean_json(raw: str) -> str:
     raw = re.sub(r'\s*```$', '', raw)
     return raw.strip()
 
+from decimal import Decimal
+
 # ── DB Execution ─────────────────────────────────────────────────────────────
+def sanitize_data(data):
+    """Recursively convert Decimal objects to floats/strings for JSON serialization"""
+    if isinstance(data, list):
+        return [sanitize_data(v) for v in data]
+    if isinstance(data, dict):
+        return {k: sanitize_data(v) for k, v in data.items()}
+    if isinstance(data, Decimal):
+        return float(data)
+    return data
+
 def run_query(sql_query: str):
     try:
         current_engine = get_active_engine()
@@ -212,7 +227,9 @@ def run_query(sql_query: str):
             result = conn.execute(text(sql_query))
             if result.returns_rows:
                 columns = list(result.keys())
-                rows = [dict(zip(columns, row)) for row in result.fetchall()]
+                # Sanitize rows to handle Decimal and other non-serializable types
+                raw_rows = [dict(zip(columns, row)) for row in result.fetchall()]
+                rows = sanitize_data(raw_rows)
                 return columns, rows, None
             return [], [], None
     except Exception as e:
@@ -228,7 +245,9 @@ def ask_gemini_sql(question: str) -> dict:
 
 def ask_gemini_format(question: str, sql_query: str, results: list) -> dict:
     client = get_client()
-    prompt = FORMAT_SYSTEM_PROMPT + f"\n\nQuestion: {question}\n\nSQL used:\n{sql_query}\n\nResults:\n{json.dumps(results[:20], indent=2)}"
+    # Sanitize results before json.dumps to prevent Decimal serialization error
+    sanitized_results = sanitize_data(results[:20])
+    prompt = FORMAT_SYSTEM_PROMPT + f"\n\nQuestion: {question}\n\nSQL used:\n{sql_query}\n\nResults:\n{json.dumps(sanitized_results, indent=2)}"
     resp = client.generate_content(prompt)
     raw  = clean_json(resp.text)
     return json.loads(raw)

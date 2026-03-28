@@ -87,6 +87,18 @@ export function PanelHeader({ title, subtitle, children }) {
   )
 }
 
+export function PageHeader({ title, sub, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+      <div>
+        <h1 style={{ fontFamily: "'Space Mono',monospace", fontSize: 22, fontWeight: 700, color: '#e8e8f0', margin: 0 }}>{title}</h1>
+        {sub && <p style={{ fontSize: 14, color: '#666680', marginTop: 6 }}>{sub}</p>}
+      </div>
+      {children && <div style={{ display: 'flex', gap: 12 }}>{children}</div>}
+    </div>
+  )
+}
+
 export function PanelBody({ children, style = {}, noPad = false }) {
   return (
     <div style={{ ...(noPad ? {} : { padding: '20px 22px' }), ...style }}>

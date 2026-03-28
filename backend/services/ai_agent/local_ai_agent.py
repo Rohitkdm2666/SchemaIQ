@@ -35,7 +35,8 @@ class SchemaIQLocalAI:
         
     def generate_intelligent_dictionary(self, engine: Engine, 
                                       include_profiling: bool = True,
-                                      sample_size: int = 1000) -> DictionaryResponse:
+                                      sample_size: int = 1000,
+                                      use_estimation: bool = False) -> DictionaryResponse:
         """
         Generate comprehensive intelligent data dictionary
         """
@@ -78,7 +79,7 @@ class SchemaIQLocalAI:
                 for table in tables_list:
                     table_name = table.get('name', '')
                     try:
-                        profile = self.data_profiler.profile_table(engine, table_name, sample_size)
+                        profile = self.data_profiler.profile_table(engine, table_name, sample_size, use_estimation)
                         table_profiles[table_name] = profile
                     except Exception as e:
                         # Continue without profiling for problematic tables
@@ -89,8 +90,9 @@ class SchemaIQLocalAI:
             
             # Step 6: Generate comprehensive context
             sample_data = self._extract_sample_data_from_profiles(table_profiles)
+            inferred_types = self._extract_inferred_types_from_profiles(table_profiles)
             schema_context = self.context_generator.generate_comprehensive_context(
-                tables_list, all_relationships, sample_data
+                tables_list, all_relationships, sample_data, inferred_types
             )
             
             # Step 7: Build response models
@@ -116,7 +118,8 @@ class SchemaIQLocalAI:
                             None
                         )
                     
-                    dict_column = self._build_dictionary_column(column, column_context, column_profile)
+                    is_pk = column.get('name') in table.get('primary_key', [])
+                    dict_column = self._build_dictionary_column(column, column_context, column_profile, is_pk)
                     dictionary_columns.append(dict_column)
                 
                 # Build table model
@@ -196,8 +199,22 @@ class SchemaIQLocalAI:
         
         return sample_data
     
+    def _extract_inferred_types_from_profiles(self, table_profiles: Dict) -> Dict[str, Dict[str, str]]:
+        """
+        Extract inferred content types from profiling results
+        """
+        inferred_types = {}
+        
+        for table_name, profile in table_profiles.items():
+            table_inferred = {}
+            for column_profile in profile.columns:
+                table_inferred[column_profile.column_name] = column_profile.inferred_content_type
+            inferred_types[table_name] = table_inferred
+        
+        return inferred_types
+    
     def _build_dictionary_column(self, column: Dict, column_context: Any, 
-                               column_profile: Any) -> DictionaryColumnModel:
+                               column_profile: Any, is_pk: bool = False) -> DictionaryColumnModel:
         """
         Build dictionary column model with AI context
         """
@@ -230,19 +247,23 @@ class SchemaIQLocalAI:
         quality_score = 0.0
         
         if column_profile:
-            sample_values = column_profile.sample_values
+            from decimal import Decimal
+            # Sanitize sample values to ensure they are JSON serializable
+            raw_samples = column_profile.sample_values or []
+            sample_values = [float(v) if isinstance(v, Decimal) else v for v in raw_samples]
+            
             null_percentage = column_profile.null_percentage
             unique_count = column_profile.unique_count
             unique_percentage = column_profile.unique_percentage
-            min_length = column_profile.min_length
-            max_length = column_profile.max_length
-            avg_length = column_profile.avg_length
+            min_length = float(column_profile.min_length) if isinstance(column_profile.min_length, Decimal) else column_profile.min_length
+            max_length = float(column_profile.max_length) if isinstance(column_profile.max_length, Decimal) else column_profile.max_length
+            avg_length = float(column_profile.avg_length) if isinstance(column_profile.avg_length, Decimal) else column_profile.avg_length
             data_patterns = column_profile.data_patterns
             inferred_content_type = column_profile.inferred_content_type
             quality_score = column_profile.quality_score
         
         # Determine key flags
-        primary_key = column_name in column.get('primary_key', [])
+        primary_key = is_pk
         foreign_key = None
         
         # Check for foreign key references
@@ -257,10 +278,10 @@ class SchemaIQLocalAI:
         return DictionaryColumnModel(
             name=column_name,
             type=column_type,
-            nullable=not primary_key,  # Assume PKs are not nullable
+            nullable=column.get('nullable', True),
             primary_key=primary_key,
             foreign_key=foreign_key,
-            sample_values=sample_values[:5],  # Limit to 5 samples
+            sample_values=[v for v in sample_values[:5] if v is not None],  # Filter None and limit
             null_percentage=round(null_percentage, 2),
             unique_count=unique_count,
             unique_percentage=round(unique_percentage, 2),

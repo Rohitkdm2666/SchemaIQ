@@ -156,6 +156,54 @@ class IntelligentContextGenerator:
                     'purpose': 'Defines organizational units, reporting structures, and departmental information',
                     'role': 'Organizational entity structuring workforce hierarchy and reporting relationships'
                 }
+            },
+            'biotech': {
+                'specimen': {
+                    'desc': 'Biological sample and specimen tracking',
+                    'purpose': 'Maintains detailed records of biological samples, including origin, viability, and processing history',
+                    'role': 'Core research entity representing the primary subject of laboratory analysis'
+                },
+                'experiment': {
+                    'desc': 'Laboratory experiment and assay results',
+                    'purpose': 'Records parameters and outcomes of scientific experiments and biological assays',
+                    'role': 'Transactional research entity capturing scientific discoveries and data'
+                }
+            },
+            'fintech': {
+                'wallet': {
+                    'desc': 'Digital wallet and balance management',
+                    'purpose': 'Manages digital asset balances, keys, and user financial positions in real-time',
+                    'role': 'Core financial entity representing user holdings in a digital ecosystem'
+                },
+                'settlement': {
+                    'desc': 'Financial clearing and settlement records',
+                    'purpose': 'Tracks the final exchange of funds between financial institutions and merchants',
+                    'role': 'Compliance entity ensuring transactional finality and auditability'
+                }
+            },
+            'iot_telemetry': {
+                'device': {
+                    'desc': 'IoT device and hardware registry',
+                    'purpose': 'Stores configuration, status, and metadata for connected hardware sensors and actuators',
+                    'role': 'Infrastructure entity representing the physical edge devices in the network'
+                },
+                'reading': {
+                    'desc': 'Environmental and sensor telemetry streams',
+                    'purpose': 'Captures high-frequency time-series data from remote sensors for monitoring and analysis',
+                    'role': 'Data stream entity providing real-time visibility into physical environments'
+                }
+            },
+            'aerospace': {
+                'aircraft': {
+                    'desc': 'Aviation fleet and aircraft specifications',
+                    'purpose': 'Maintains technical data, maintenance history, and operational status for aerospace vehicles',
+                    'role': 'Asset management entity for high-value aviation hardware'
+                },
+                'flight': {
+                    'desc': 'Mission and flight path telemetry',
+                    'purpose': 'Records flight parameters, mission progress, and avionics data during active operations',
+                    'role': 'Mission-critical entity capturing real-time operational performance'
+                }
             }
         }
     
@@ -187,7 +235,8 @@ class IntelligentContextGenerator:
         }
     
     def generate_comprehensive_context(self, tables: List[Dict], relationships: List[Dict] = None,
-                                     sample_data: Dict[str, Dict] = None) -> SchemaContext:
+                                     sample_data: Dict[str, Dict] = None,
+                                     inferred_types: Dict[str, Dict[str, str]] = None) -> SchemaContext:
         """
         Generate comprehensive context for entire schema
         """
@@ -215,8 +264,14 @@ class IntelligentContextGenerator:
                 column_type = column.get('type', '')
                 samples = table_samples.get(column_name, [])
                 
+                # Get inferred type for this specific column
+                col_inferred_type = None
+                if inferred_types and table_name in inferred_types:
+                    col_inferred_type = inferred_types[table_name].get(column_name)
+                
                 column_context = self.pattern_engine.analyze_column(
-                    column_name, column_type, table_name, samples, relationships
+                    column_name, column_type, table_name, samples, relationships,
+                    inferred_type=col_inferred_type
                 )
                 column_list.append(column_context)
             

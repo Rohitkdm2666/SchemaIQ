@@ -13,7 +13,12 @@ def extract_schema(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         for c in t.get("columns", []):
             col_name = c.get("name")
             col_type = normalize_type(c.get("type"))
-            columns_out.append({"name": col_name, "type": col_type})
+            nullable = c.get("nullable", True)
+            columns_out.append({
+                "name": col_name, 
+                "type": col_type,
+                "nullable": nullable
+            })
 
         tables_out.append(
             {

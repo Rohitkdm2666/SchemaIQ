@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Panel, PanelHeader, PanelBody, Tag, Button } from '../components/ui.jsx'
-import ERDiagram from '../components/ERDiagram.jsx'
-import { schemaToGraph } from '../utils/schemaToGraph.js'
+import { useSearchParams } from 'react-router-dom'
+import { Panel, PanelHeader, PanelBody, Tag, Button, Spinner, PageHeader } from '../components/ui.jsx'
+import { Search, CheckCircle2, Brain, Link, RefreshCw } from 'lucide-react'
 
 const TV = { PK: 'pk', FK: 'fk', IDX: 'idx', 'NOT NULL': 'nn', NULLABLE: 'warn' }
 
-function ColCard({ col }) {
+function ColCard({ col, isEstimated }) {
   const nullPct = parseFloat(col.nullPct) || 0
   const nullColor = nullPct > 50 ? '#e74c3c' : nullPct > 0 ? '#f39c12' : '#27ae60'
   return (
@@ -21,11 +21,11 @@ function ColCard({ col }) {
       <p style={{ fontSize: 12, color: '#666680', lineHeight: 1.6, marginBottom: 12 }}>{col.desc}</p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div style={{ background: '#111118', borderRadius: 7, padding: '8px 12px' }}>
-          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: '#444458', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Null %</div>
+          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: '#444458', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Null % {isEstimated ? '(Est.)' : ''}</div>
           <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, color: nullColor }}>{col.nullPct}</div>
         </div>
         <div style={{ background: '#111118', borderRadius: 7, padding: '8px 12px' }}>
-          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: '#444458', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Distinct</div>
+          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: '#444458', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Distinct {isEstimated ? '(Est.)' : ''}</div>
           <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, color: '#b0b0c8' }}>{col.distinct}</div>
         </div>
       </div>
@@ -34,69 +34,92 @@ function ColCard({ col }) {
 }
 
 export default function SchemaPage() {
+  const [searchParams] = useSearchParams()
+  const tableParam = searchParams.get('table')
+  
   const [activeTable, setActiveTable] = useState('')
   const [filter, setFilter] = useState('')
 
   const [schemaTables, setSchemaTables] = useState({})
-  const [graphData, setGraphData] = useState({ nodes: [], links: [] })
   const [loading, setLoading] = useState(true)
+  const [scanning, setScanning] = useState(false)
 
-  useEffect(() => {
-    // Fetch schema structure
+  const loadSchema = (deepTable = null) => {
+    if (deepTable) setScanning(true);
+    else setLoading(true);
+
+    const dictionaryUrl = deepTable 
+      ? `http://localhost:8001/api/dictionary?tables=${deepTable}&include_profiling=true`
+      : 'http://localhost:8001/api/dictionary/quick';
+
     fetch('http://localhost:8001/api/schema?infer=true')
       .then(r => r.json())
       .then(schemaData => {
-        setGraphData(schemaToGraph(schemaData));
-        
-        // Fetch AI dictionary data for row counts and enhanced info
-        return fetch('http://localhost:8001/api/dictionary/quick')
+        return fetch(dictionaryUrl)
           .then(r => r.json())
           .then(dictData => {
-            const tData = {};
+            const tData = {...schemaTables};
             
             if (schemaData.tables) {
               schemaData.tables.forEach(t => {
-                // Find matching table in dictionary data for row count
                 const dictTable = dictData.tables?.find(dt => dt.name === t.name);
-                
+                if (deepTable && t.name !== deepTable && schemaTables[t.name]) return;
+
                 tData[t.name] = {
-                  rows: dictTable ? dictTable.row_count.toLocaleString() : 'N/A', 
+                  rows: dictTable ? dictTable.row_count.toLocaleString() : (schemaTables[t.name]?.rows || 'N/A'), 
                   cols: t.columns.length, 
                   pk: t.primary_key ? t.primary_key[0] : null,
                   fks: t.foreign_keys ? t.foreign_keys.map(fk => `${fk.column} → ${fk.references.table}`) : [],
                   summary: dictTable ? dictTable.business_purpose || dictTable.description : 'Loaded dynamically from Schema Intelligence Engine.',
+                  isEstimated: !deepTable && !(schemaTables[t.name] && !schemaTables[t.name].isEstimated),
                   columns: t.columns.map(c => {
                     const tags = [];
                     if (t.primary_key && t.primary_key.includes(c.name)) tags.push('PK');
                     if (t.foreign_keys && t.foreign_keys.some(f => f.column === c.name)) tags.push('FK');
                     
-                    // Find matching column in dictionary data
                     const dictCol = dictTable?.columns?.find(dc => dc.name === c.name);
                     
                     return {
                       name: c.name, 
                       type: c.type, 
                       tags, 
-                      nullPct: dictCol ? `${(dictCol.null_percentage || 0).toFixed(1)}%` : 'N/A', 
-                      distinct: dictCol ? (dictCol.unique_count || 'N/A') : 'N/A', 
-                      desc: dictCol ? (dictCol.description || dictCol.business_context || '') : ''
+                      nullPct: dictCol ? `${(dictCol.null_percentage || 0).toFixed(1)}%` : (schemaTables[t.name]?.columns?.find(sc => sc.name === c.name)?.nullPct || 'N/A'), 
+                      distinct: dictCol ? (dictCol.unique_count || 'N/A') : (schemaTables[t.name]?.columns?.find(sc => sc.name === c.name)?.distinct || 'N/A'), 
+                      desc: dictCol ? (dictCol.description || dictCol.business_context || '') : (schemaTables[t.name]?.columns?.find(sc => sc.name === c.name)?.desc || '')
                     };
                   })
                 };
               });
               setSchemaTables(tData);
-              if (schemaData.tables.length > 0) setActiveTable(schemaData.tables[0].name);
+              
+              if (tableParam && tData[tableParam]) {
+                setActiveTable(tableParam);
+              } else if (schemaData.tables.length > 0 && !activeTable) {
+                setActiveTable(schemaData.tables[0].name);
+              }
             }
             setLoading(false);
+            setScanning(false);
           });
       })
       .catch(err => {
         console.error(err);
         setLoading(false);
+        setScanning(false);
       });
-  }, [])
+  };
 
-  if (loading) return <div style={{ color: '#e8e8f0', padding: 20 }}>Loading schema...</div>;
+  useEffect(() => {
+    loadSchema();
+  }, [tableParam])
+
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#666680', gap: 12 }}>
+      <Spinner size={18} />
+      <span>Loading schema intelligence...</span>
+    </div>
+  );
+  
   if (Object.keys(schemaTables).length === 0) return <div style={{ color: '#e8e8f0', padding: 20 }}>No tables found.</div>;
 
   const t = schemaTables[activeTable] || Object.values(schemaTables)[0]
@@ -105,11 +128,11 @@ export default function SchemaPage() {
   const filteredCols = t.columns.filter(c => !filter || c.name.toLowerCase().includes(filter.toLowerCase()))
 
   return (
-    <div>
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: "'Space Mono',monospace", fontSize: 22, fontWeight: 700, color: '#e8e8f0', margin: 0 }}>Schema Explorer</h1>
-        <p style={{ fontSize: 14, color: '#666680', marginTop: 6 }}>Browse all {Object.keys(schemaTables).length} tables · Live from active DB connection</p>
-      </div>
+    <div className="animate-fade-in">
+      <PageHeader 
+        title="Schema Explorer" 
+        sub={`Browse all ${Object.keys(schemaTables).length} tables · ${scanning ? 'Analysis in progress...' : 'Live from active DB connection'}`}
+      />
 
       <div style={{ display: 'flex', gap: 16 }}>
         {/* Left: table list */}
@@ -125,8 +148,6 @@ export default function SchemaPage() {
                   borderRadius: 10, padding: '13px 14px', cursor: 'pointer',
                   textAlign: 'left', transition: 'all 0.15s', width: '100%',
                 }}
-                  onMouseEnter={e => { if (activeTable !== name) { e.currentTarget.style.borderLeftColor = 'rgba(192,57,43,0.5)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)' } }}
-                  onMouseLeave={e => { if (activeTable !== name) { e.currentTarget.style.borderLeftColor = 'transparent'; e.currentTarget.style.background = '#16161f' } }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
                     <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, fontWeight: 700, color: '#f0828a' }}>{name}</span>
@@ -162,36 +183,36 @@ export default function SchemaPage() {
 
           {/* Columns */}
           <Panel style={{ marginBottom: 14 }}>
-            <PanelHeader title={`${activeTable} — Columns`} subtitle={`${t.cols} columns`}>
-              <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Filter columns…"
-                style={{ background: '#16161f', border: '1px solid #1e1e2e', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: '#e8e8f0', outline: 'none', fontFamily: "'Space Mono',monospace", width: 160, transition: 'border-color 0.2s' }}
-                onFocus={e => e.target.style.borderColor = '#c0392b'} onBlur={e => e.target.style.borderColor = '#1e1e2e'}
-              />
-              <Button variant="ghost">⬇ DDL</Button>
+            <PanelHeader title={`${activeTable} — Columns`} subtitle={`${t.cols} columns ${t.isEstimated ? '(Estimated)' : '(Deep Scan)'}`}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Filter columns…"
+                  style={{ background: '#16161f', border: '1px solid #1e1e2e', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: '#e8e8f0', outline: 'none', fontFamily: "'Space Mono',monospace", width: 160 }}
+                />
+                <Button 
+                  onClick={() => loadSchema(activeTable)} 
+                  disabled={scanning} 
+                  variant={t.isEstimated ? "outline" : "ghost"}
+                  style={{ color: t.isEstimated ? '#3498db' : '#27ae60' }}
+                >
+                  {scanning ? <RefreshCw size={14} className="animate-spin" /> : (t.isEstimated ? <><Search size={14} style={{ marginRight: 6 }} /> Deep Analysis</> : <><CheckCircle2 size={14} style={{ marginRight: 6 }} /> Full Scan Active</>)}
+                </Button>
+              </div>
             </PanelHeader>
             <PanelBody>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                {filteredCols.map(col => <ColCard key={col.name} col={col} />)}
+                {filteredCols.map(col => <ColCard key={col.name} col={col} isEstimated={t.isEstimated} />)}
               </div>
             </PanelBody>
           </Panel>
 
-          {/* ER Diagram */}
-          <Panel style={{ marginBottom: 14 }}>
-            <PanelHeader title="Entity Relationship Diagram" />
-            <div style={{ height: 500, background: '#0f0f17', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
-              <ERDiagram nodes={graphData.nodes} links={graphData.links} />
-            </div>
-          </Panel>
-
           {/* AI summary */}
           <Panel>
-            <PanelHeader title="🧠 AI Business Summary"><Tag variant="done">AI Generated</Tag></PanelHeader>
+            <PanelHeader title={<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Brain size={16} color="#c0392b" /> AI Business Summary</div>}><Tag variant="done">AI Generated</Tag></PanelHeader>
             <PanelBody>
               <p style={{ fontSize: 14, color: '#b0b0c8', lineHeight: 1.8 }}>{t.summary}</p>
               {t.fks.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-                  {t.fks.map((fk, i) => <Tag key={i} variant="fk">🔗 {fk}</Tag>)}
+                  {t.fks.map((fk, i) => <Tag key={i} variant="fk"><Link size={10} style={{ marginRight: 4 }} /> {fk}</Tag>)}
                 </div>
               )}
             </PanelBody>

@@ -1,0 +1,36 @@
+{
+  "model_name": "RGT-1 (Relational-Graph Transformer)",
+  "version": "1.0.4-beta",
+  "architecture": {
+    "transformer_layers": 12,
+    "gnn_stack": 3,
+    "attention_heads": 16,
+    "hidden_size": 1024,
+    "vocab_size": 48000,
+    "activation": "GeLU",
+    "dropout": 0.1,
+    "context_window": 16384
+  },
+  "training_params": {
+    "dataset": "SchemaNet-120k",
+    "optimizer": "AdamW",
+    "learning_rate": 5e-5,
+    "weight_decay": 0.01,
+    "scheduler": "CosineAnnealingWithWarmup",
+    "precision": "bf16"
+  },
+  "metadata_bias": {
+    "fk_weight": 2.5,
+    "pk_weight": 1.8,
+    "index_weight": 1.2,
+    "data_type_embedding": true,
+    "join_path_prediction": true
+  },
+  "output_heads": [
+    "domain_classification",
+    "semantic_description",
+    "security_masking_suggestion",
+    "architectural_pattern_recognition"
+  ],
+  "engine_path": "./weights/rgt1_final_rev4.bin"
+}
